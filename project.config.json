@@ -2,7 +2,7 @@
   "miniprogramRoot": "./dist",
   "projectname": "liquidity-watermark-assistant-frontend",
   "description": "Taro mini program for watermark removal assistant",
-  "appid": "touristappid",
+  "appid": "wx6a30c2e167ad4af1",
   "setting": {
     "urlCheck": true,
     "es6": false,
