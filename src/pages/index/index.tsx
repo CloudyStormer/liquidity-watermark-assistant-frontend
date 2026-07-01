@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import Taro from '@tarojs/taro'
-import { Button, Image, Picker, Text, Video, View } from '@tarojs/components'
+import { Button, Image, Picker, Text, View } from '@tarojs/components'
 import AdCard from '@/components/AdCard'
 import BottomNav from '@/components/BottomNav'
 import DisclaimerModal from '@/components/DisclaimerModal'
@@ -51,8 +51,8 @@ function normalizeRect(rect: DraftRect): DraftRect {
 
 function regionFromRect(rect: DraftRect, media: PickedMedia, blurRadius: number): WatermarkRegion {
   const normalized = normalizeRect(rect)
-  const width = media.width || (media.type === 'video' ? 720 : 1080)
-  const height = media.height || (media.type === 'video' ? 1280 : 1080)
+  const width = media.width || 1080
+  const height = media.height || 1080
   return {
     x: Math.max(0, Math.round(normalized.x * width)),
     y: Math.max(0, Math.round(normalized.y * height)),
@@ -147,9 +147,8 @@ export default function IndexPage() {
       await loginAndRefreshQuota()
       const result = await Taro.chooseMedia({
         count: 1,
-        mediaType: ['image', 'video'],
+        mediaType: ['image'],
         sourceType: ['album', 'camera'],
-        maxDuration: 300,
         camera: 'back'
       })
       const file = result.tempFiles?.[0] as any
@@ -157,19 +156,17 @@ export default function IndexPage() {
         return
       }
 
-      const type = file.fileType === 'video' ? 'video' : 'image'
+      const type = 'image'
       let width = Number(file.width) || undefined
       let height = Number(file.height) || undefined
 
-      if (type === 'image') {
-        try {
-          const imageInfo = await Taro.getImageInfo({ src: file.tempFilePath })
-          width = imageInfo.width
-          height = imageInfo.height
-        } catch {
-          width = width || 1080
-          height = height || 1080
-        }
+      try {
+        const imageInfo = await Taro.getImageInfo({ src: file.tempFilePath })
+        width = imageInfo.width
+        height = imageInfo.height
+      } catch {
+        width = width || 1080
+        height = height || 1080
       }
 
       setSelectedFile({
@@ -306,8 +303,7 @@ export default function IndexPage() {
     setStatusLabel('上传素材中...')
 
     try {
-      const method: CleanupMethod =
-        selectedFile.type === 'image' && modelIndex === 2 ? 'inpaint' : 'blur'
+      const method: CleanupMethod = modelIndex === 2 ? 'inpaint' : 'blur'
       const job = await uploadCleanupJob({
         filePath: selectedFile.path,
         method,
@@ -393,17 +389,7 @@ export default function IndexPage() {
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
       >
-        {selectedFile.type === 'video' ? (
-          <Video
-            className='editor-media'
-            src={selectedFile.path}
-            controls={false}
-            objectFit='contain'
-            muted
-          />
-        ) : (
-          <Image className='editor-media' src={selectedFile.path} mode='aspectFit' />
-        )}
+        <Image className='editor-media' src={selectedFile.path} mode='aspectFit' />
 
         {points.map((point, index) => (
           <View
@@ -586,8 +572,8 @@ export default function IndexPage() {
             <Text className='eyebrow-mark'>AI</Text>
             <Text className='eyebrow-text'>本地素材处理</Text>
           </View>
-          <Text className='home-title'>图片/视频去水印</Text>
-          <Text className='home-subtitle'>上传自有素材，框选水印区域后处理</Text>
+          <Text className='home-title'>图片去水印</Text>
+          <Text className='home-subtitle'>上传自有图片，框选水印区域后处理</Text>
         </View>
         <View className='brand-badge'>
           <Text>去</Text>
@@ -602,13 +588,12 @@ export default function IndexPage() {
           <View className='upload-entry-icon'>
             <Text>＋</Text>
           </View>
-          <Text className='upload-entry-title'>选择图片或视频</Text>
+          <Text className='upload-entry-title'>选择图片</Text>
           <Text className='upload-entry-desc'>支持画笔涂抹、四边形框选，后端返回处理成品和 MD5</Text>
           <View className='format-list'>
             <Text>JPG</Text>
             <Text>PNG</Text>
-            <Text>MP4</Text>
-            <Text>MOV</Text>
+            <Text>WEBP</Text>
           </View>
         </Button>
       </View>
@@ -620,7 +605,7 @@ export default function IndexPage() {
         </View>
         <View className='step-list'>
           {[
-            '选择本地图片或视频文件',
+            '选择本地图片文件',
             '用画笔或框选标记水印区域',
             '后端处理后返回成品和唯一 MD5'
           ].map((text, index) => (
