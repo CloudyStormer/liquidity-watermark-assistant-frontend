@@ -1,0 +1,136 @@
+.upload-wrap {
+  margin: 0 32rpx 28rpx;
+}
+
+.upload-panel {
+  width: 100%;
+  min-height: 400rpx;
+  padding: 64rpx 36rpx;
+  border: 3rpx dashed #c5d5fb;
+  border-radius: 32rpx;
+  background: #ebf2ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-panel-hover {
+  background: #dce9ff;
+}
+
+.upload-panel.is-processing {
+  opacity: 0.92;
+}
+
+.upload-state {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.upload-orb {
+  width: 128rpx;
+  height: 128rpx;
+  margin-bottom: 28rpx;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #3478f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 28rpx rgba(52, 120, 246, 0.12);
+}
+
+.upload-orb.is-spinning {
+  animation: rotate-soft 1.2s linear infinite;
+}
+
+.upload-orb-text {
+  font-size: 38rpx;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.upload-title {
+  color: #1a1a2e;
+  font-size: 30rpx;
+  line-height: 42rpx;
+  font-weight: 700;
+}
+
+.upload-desc {
+  margin-top: 10rpx;
+  color: #9ba3b8;
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.format-row {
+  width: 100%;
+  margin-top: 36rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18rpx;
+}
+
+.format-pill {
+  min-height: 58rpx;
+  padding: 0 22rpx;
+  border-radius: 16rpx;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 8rpx 28rpx rgba(52, 120, 246, 0.09);
+}
+
+.format-icon {
+  margin-right: 10rpx;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.format-icon.brand {
+  color: #3478f6;
+}
+
+.format-icon.orange {
+  color: #ff7d00;
+}
+
+.format-text {
+  color: #4a5168;
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+.progress-track {
+  width: 440rpx;
+  height: 12rpx;
+  margin-top: 28rpx;
+  border-radius: 999rpx;
+  background: #e8ecf4;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #3478f6, #5b9bff);
+  transition: width 0.28s ease;
+}
+
+.progress-number {
+  margin-top: 14rpx;
+  color: #9ba3b8;
+  font-size: 24rpx;
+}
+
+.upload-note {
+  display: block;
+  margin-top: 20rpx;
+  color: #9ba3b8;
+  font-size: 22rpx;
+  text-align: center;
+}

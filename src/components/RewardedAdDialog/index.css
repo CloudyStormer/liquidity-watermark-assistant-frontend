@@ -1,0 +1,127 @@
+.reward-mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 90;
+  padding: 0 48rpx;
+  background: rgba(15, 20, 40, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reward-dialog {
+  position: relative;
+  width: 100%;
+  max-width: 680rpx;
+  overflow: hidden;
+  border-radius: 32rpx;
+  background: #ffffff;
+  box-shadow: 0 18rpx 60rpx rgba(15, 20, 40, 0.22);
+}
+
+.reward-band {
+  height: 12rpx;
+  background: linear-gradient(90deg, #3478f6, #5b9bff, #ff7d00);
+}
+
+.reward-close {
+  position: absolute;
+  top: 28rpx;
+  right: 28rpx;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: #f7f9fc;
+  color: #9ba3b8;
+  font-size: 36rpx;
+  line-height: 56rpx;
+}
+
+.reward-close-hover,
+.reward-secondary-hover {
+  opacity: 0.62;
+}
+
+.reward-content {
+  padding: 40rpx 48rpx 48rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.reward-icon {
+  width: 112rpx;
+  height: 112rpx;
+  margin-bottom: 28rpx;
+  border-radius: 28rpx;
+  background: #fff3e6;
+  color: #ff7d00;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 38rpx;
+  font-weight: 800;
+}
+
+.reward-title {
+  color: #1a1a2e;
+  font-size: 32rpx;
+  line-height: 44rpx;
+  font-weight: 800;
+}
+
+.reward-desc {
+  margin-top: 12rpx;
+  color: #4a5168;
+  font-size: 26rpx;
+  line-height: 44rpx;
+}
+
+.reward-pill {
+  margin-top: 34rpx;
+  min-height: 92rpx;
+  padding: 0 28rpx;
+  border-radius: 24rpx;
+  background: #e6faf3;
+  color: #00c27c;
+  display: flex;
+  align-items: center;
+}
+
+.reward-pill-icon {
+  margin-right: 14rpx;
+  font-size: 28rpx;
+  font-weight: 800;
+}
+
+.reward-pill-text {
+  font-size: 26rpx;
+  font-weight: 800;
+}
+
+.reward-primary {
+  width: 100%;
+  height: 96rpx;
+  margin-top: 34rpx;
+  border-radius: 24rpx;
+  background: #ff7d00;
+  color: #ffffff;
+  font-size: 30rpx;
+  line-height: 96rpx;
+  font-weight: 800;
+}
+
+.reward-primary-hover {
+  opacity: 0.82;
+}
+
+.reward-secondary {
+  width: 100%;
+  height: 72rpx;
+  margin-top: 18rpx;
+  color: #9ba3b8;
+  font-size: 26rpx;
+  line-height: 72rpx;
+}

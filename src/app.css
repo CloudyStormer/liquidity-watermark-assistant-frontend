@@ -1,0 +1,120 @@
+page {
+  min-height: 100%;
+  background: #f2f5fa;
+  color: #1a1a2e;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+view,
+text,
+button,
+image {
+  box-sizing: border-box;
+}
+
+button {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  line-height: normal;
+}
+
+button::after {
+  border: 0;
+}
+
+.page-shell {
+  width: 100%;
+  min-height: 100vh;
+  background: #f2f5fa;
+  padding-bottom: calc(136rpx + env(safe-area-inset-bottom));
+  overflow-x: hidden;
+}
+
+.page-header {
+  padding: 96rpx 32rpx 28rpx;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+}
+
+.between {
+  justify-content: space-between;
+}
+
+.card {
+  margin: 0 32rpx 28rpx;
+  background: #ffffff;
+  border-radius: 28rpx;
+  box-shadow: 0 8rpx 28rpx rgba(52, 120, 246, 0.09);
+}
+
+.soft-card {
+  background: #f7f9fc;
+  border: 1rpx solid #e8ecf4;
+}
+
+.brand-text {
+  color: #3478f6;
+}
+
+.hint-text {
+  color: #9ba3b8;
+}
+
+.sub-text {
+  color: #4a5168;
+}
+
+.fade-in {
+  animation: fade-in 0.32s ease both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(16rpx);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rotate-soft {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-ring {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(52, 120, 246, 0.35);
+  }
+
+  50% {
+    box-shadow: 0 0 0 18rpx rgba(52, 120, 246, 0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -320rpx 0;
+  }
+
+  100% {
+    background-position: 320rpx 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #dbe6fb 25%, #f7f9fc 50%, #dbe6fb 75%);
+  background-size: 640rpx 100%;
+  animation: shimmer 1.4s infinite;
+}
