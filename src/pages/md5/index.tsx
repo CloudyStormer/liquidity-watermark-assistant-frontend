@@ -103,6 +103,15 @@ export default function Md5Page() {
     }
   }
 
+  const showFeatureInfo = () => {
+    Taro.showModal({
+      title: 'MD5 修改说明',
+      content: '系统会在后端为视频写入唯一 metadata，并生成一个新的副本。画面内容不变，但文件二进制和 MD5 会变成新的唯一值。',
+      showCancel: false,
+      confirmText: '知道了'
+    })
+  }
+
   return (
     <View className='page-shell fade-in md5-page'>
       <View className='md5-header'>
@@ -116,8 +125,10 @@ export default function Md5Page() {
         <View className='md5-ad-copy'>
           <View className='ad-avatar' />
           <Text className='ad-title'>视频文件唯一值工具</Text>
-          <Text className='ad-subtitle'>修改文件指纹，生成新的本地副本</Text>
-          <Button className='ad-action' hoverClass='ad-action-hover'>了解功能</Button>
+          <Text className='ad-subtitle'>写入唯一 metadata，生成新的本地副本</Text>
+          <Button className='ad-action' hoverClass='ad-action-hover' onClick={showFeatureInfo}>
+            了解功能
+          </Button>
         </View>
       </View>
 
