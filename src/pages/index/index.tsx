@@ -184,7 +184,7 @@ export default function IndexPage() {
       setTimeout(syncPreviewBox, 180)
     } catch (error) {
       const message = error instanceof Error ? error.message : ''
-      if (!message.includes('cancel')) {
+      if (!message.includes('cancel') && !message.includes('微信登录失败')) {
         Taro.showToast({ title: '选择失败', icon: 'none' })
       }
     }

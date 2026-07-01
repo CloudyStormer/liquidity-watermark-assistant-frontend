@@ -45,7 +45,7 @@ export default function Md5Page() {
       await startMd5(nextFile)
     } catch (error) {
       const message = error instanceof Error ? error.message : ''
-      if (!message.includes('cancel')) {
+      if (!message.includes('cancel') && !message.includes('微信登录失败')) {
         Taro.showToast({ title: '选择失败', icon: 'none' })
       }
     }

@@ -15,9 +15,44 @@ interface UploadCleanupOptions {
   regions: WatermarkRegion[]
 }
 
+function stringifyDetail(detail: unknown) {
+  if (!detail) {
+    return ''
+  }
+
+  if (typeof detail === 'string') {
+    return detail
+  }
+
+  try {
+    return JSON.stringify(detail)
+  } catch {
+    return String(detail)
+  }
+}
+
+function parseErrorPayload(data: string) {
+  try {
+    const payload = JSON.parse(data || '{}') as { detail?: unknown; message?: unknown; errMsg?: unknown }
+    return stringifyDetail(payload.detail) || stringifyDetail(payload.message) || stringifyDetail(payload.errMsg)
+  } catch {
+    return data
+  }
+}
+
+function getTaroErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message) {
+    return error.message
+  }
+
+  const payload = error as { errMsg?: string; message?: string }
+  return payload?.errMsg || payload?.message || '网络请求失败'
+}
+
 function parseUploadResponse<T>(response: Taro.uploadFile.SuccessCallbackResult): T {
   if (response.statusCode < 200 || response.statusCode >= 300) {
-    throw new Error(`Upload failed: ${response.statusCode}`)
+    const message = parseErrorPayload(response.data)
+    throw new Error(message ? `${response.statusCode}: ${message}` : `Upload failed: ${response.statusCode}`)
   }
 
   return JSON.parse(response.data || '{}') as T
@@ -33,17 +68,22 @@ export function toApiUrl(path: string) {
 
 export async function uploadCleanupJob(options: UploadCleanupOptions) {
   const openid = await ensureLoggedIn()
-  const response = await Taro.uploadFile({
-    url: toApiUrl('/media/jobs/upload'),
-    filePath: options.filePath,
-    name: 'file',
-    formData: {
-      openid,
-      rights_confirmed: 'true',
-      method: options.method,
-      regions_json: JSON.stringify(options.regions)
-    }
-  })
+  let response: Taro.uploadFile.SuccessCallbackResult
+  try {
+    response = await Taro.uploadFile({
+      url: toApiUrl('/media/jobs/upload'),
+      filePath: options.filePath,
+      name: 'file',
+      formData: {
+        openid,
+        rights_confirmed: 'true',
+        method: options.method,
+        regions_json: JSON.stringify(options.regions)
+      }
+    })
+  } catch (error) {
+    throw new Error(getTaroErrorMessage(error))
+  }
 
   return parseUploadResponse<MediaJobResponse>(response)
 }
@@ -81,15 +121,20 @@ export async function waitForMediaJob(
 
 export async function uploadMd5Variant(filePath: string) {
   const openid = await ensureLoggedIn()
-  const response = await Taro.uploadFile({
-    url: toApiUrl('/media/md5/upload'),
-    filePath,
-    name: 'file',
-    formData: {
-      openid,
-      rights_confirmed: 'true'
-    }
-  })
+  let response: Taro.uploadFile.SuccessCallbackResult
+  try {
+    response = await Taro.uploadFile({
+      url: toApiUrl('/media/md5/upload'),
+      filePath,
+      name: 'file',
+      formData: {
+        openid,
+        rights_confirmed: 'true'
+      }
+    })
+  } catch (error) {
+    throw new Error(getTaroErrorMessage(error))
+  }
 
   return parseUploadResponse<Md5FileResponse>(response)
 }

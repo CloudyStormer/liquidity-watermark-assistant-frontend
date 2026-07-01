@@ -37,6 +37,15 @@ function canUseDevOpenid() {
   return process.env.NODE_ENV === 'development'
 }
 
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message) {
+    return error.message
+  }
+
+  const payload = error as { errMsg?: string; message?: string }
+  return payload?.errMsg || payload?.message || '未知错误'
+}
+
 async function exchangeCodeForOpenid(code: string) {
   const response = await requestJson<LoginResponse>(WEAPP_LOGIN_PATH, {
     method: 'POST',
@@ -78,15 +87,21 @@ export async function ensureLoggedIn() {
     return storedOpenid
   }
 
-  const loginResult = await Taro.login()
+  let loginResult: Taro.login.SuccessCallbackResult
+  try {
+    loginResult = await Taro.login()
+  } catch (error) {
+    throw new Error(`微信登录失败：${getErrorMessage(error)}`)
+  }
+
   const code = loginResult.code || `${Date.now()}`
 
   let openid = ''
   try {
     openid = await exchangeCodeForOpenid(code)
-  } catch {
+  } catch (error) {
     if (!canUseDevOpenid()) {
-      throw new Error('微信登录失败，请稍后重试')
+      throw new Error(`微信登录失败：${getErrorMessage(error)}`)
     }
     openid = `dev_openid_${hashCode(code)}`
   }
