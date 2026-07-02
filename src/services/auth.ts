@@ -141,6 +141,15 @@ async function uploadAvatar(openid: string, avatarPath?: string) {
   }
 }
 
+function storeAvatarFallback(openid: string, profile: WeChatProfile) {
+  const stored = getStoredUser()
+  storeUser({
+    openid,
+    nickname: profile.nickname || stored?.nickname || '小程序用户',
+    avatar_url: profile.avatar_path || profile.avatar_url || stored?.avatar_url
+  })
+}
+
 async function getLoginCode() {
   try {
     const loginResult = await Taro.login()
@@ -165,7 +174,11 @@ async function loginWithWeChatProfile(reason?: string) {
   try {
     const openid = await exchangeCodeForOpenid(code, profile)
     if (profile.avatar_path) {
-      await uploadAvatar(openid, profile.avatar_path)
+      try {
+        await uploadAvatar(openid, profile.avatar_path)
+      } catch {
+        storeAvatarFallback(openid, profile)
+      }
     }
     sessionProfileConfirmed = true
     return openid
@@ -176,7 +189,11 @@ async function loginWithWeChatProfile(reason?: string) {
     const devOpenid = `dev_openid_${hashCode(code)}`
     await createDevUser(devOpenid, profile)
     if (profile.avatar_path) {
-      await uploadAvatar(devOpenid, profile.avatar_path)
+      try {
+        await uploadAvatar(devOpenid, profile.avatar_path)
+      } catch {
+        storeAvatarFallback(devOpenid, profile)
+      }
     }
     sessionProfileConfirmed = true
     return devOpenid

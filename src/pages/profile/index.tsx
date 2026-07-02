@@ -67,7 +67,9 @@ export default function ProfilePage() {
 
   const loggedOpenid = user?.openid || getStoredOpenid()
   const isLoggedIn = Boolean(loggedOpenid)
-  const avatarUrl = user?.avatar_url ? toApiUrl(user.avatar_url) : ''
+  const avatarUrl = user?.avatar_url
+    ? (/^https?:\/\//i.test(user.avatar_url) || user.avatar_url.startsWith('/') ? toApiUrl(user.avatar_url) : user.avatar_url)
+    : ''
 
   const refreshProfile = async () => {
     const storedUser = getStoredUser()
