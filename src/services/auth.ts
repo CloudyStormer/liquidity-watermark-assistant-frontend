@@ -21,6 +21,7 @@ interface LoginOptions {
 interface WeChatProfile {
   nickname?: string
   avatar_path?: string
+  avatar_url?: string
 }
 
 interface UserProfileResponse {
@@ -81,7 +82,7 @@ async function exchangeCodeForOpenid(code: string, profile?: WeChatProfile) {
     data: {
       code,
       nickname: profile?.nickname || '小程序用户',
-      avatar_url: undefined
+      avatar_url: profile?.avatar_url
     }
   })
 
@@ -99,7 +100,7 @@ async function createDevUser(openid: string, profile?: WeChatProfile) {
     data: {
       openid,
       nickname: profile?.nickname || '小程序用户',
-      avatar_url: undefined
+      avatar_url: profile?.avatar_url
     }
   })
 
@@ -156,13 +157,16 @@ async function loginWithWeChatProfile(reason?: string) {
   const profileDraft = await requestWeChatProfile(reason)
   const profile: WeChatProfile = {
     nickname: profileDraft.nickname,
-    avatar_path: profileDraft.avatar_path
+    avatar_path: profileDraft.avatar_path,
+    avatar_url: profileDraft.avatar_url
   }
   const code = await getLoginCode()
 
   try {
     const openid = await exchangeCodeForOpenid(code, profile)
-    await uploadAvatar(openid, profile.avatar_path)
+    if (profile.avatar_path) {
+      await uploadAvatar(openid, profile.avatar_path)
+    }
     sessionProfileConfirmed = true
     return openid
   } catch (error) {
@@ -171,7 +175,9 @@ async function loginWithWeChatProfile(reason?: string) {
     }
     const devOpenid = `dev_openid_${hashCode(code)}`
     await createDevUser(devOpenid, profile)
-    await uploadAvatar(devOpenid, profile.avatar_path)
+    if (profile.avatar_path) {
+      await uploadAvatar(devOpenid, profile.avatar_path)
+    }
     sessionProfileConfirmed = true
     return devOpenid
   }

@@ -40,6 +40,26 @@
   line-height: 36rpx;
 }
 
+.wechat-auth-button {
+  height: 88rpx;
+  margin-top: 36rpx;
+  border-radius: 8rpx;
+  background: #07c160;
+  color: #ffffff;
+  font-size: 30rpx;
+  line-height: 88rpx;
+  font-weight: 900;
+}
+
+.manual-toggle {
+  height: 72rpx;
+  margin-top: 16rpx;
+  color: #3478f6;
+  font-size: 24rpx;
+  line-height: 72rpx;
+  font-weight: 700;
+}
+
 .avatar-picker {
   width: 136rpx;
   height: 136rpx;

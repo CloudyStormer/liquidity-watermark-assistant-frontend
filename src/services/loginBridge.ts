@@ -1,6 +1,7 @@
 export interface WeChatProfileDraft {
   nickname: string
-  avatar_path: string
+  avatar_path?: string
+  avatar_url?: string
 }
 
 interface LoginPromptPayload {

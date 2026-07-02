@@ -16,6 +16,7 @@ export default function WeChatLoginDialog() {
   const [reason, setReason] = useState('')
   const [nickname, setNickname] = useState('')
   const [avatarPath, setAvatarPath] = useState('')
+  const [manualVisible, setManualVisible] = useState(false)
 
   useEffect(() => {
     return subscribeLoginPrompt((payload) => {
@@ -23,6 +24,7 @@ export default function WeChatLoginDialog() {
       setReason(payload.reason || '登录后才能继续使用本功能，并同步今日免费次数。')
       setNickname('')
       setAvatarPath('')
+      setManualVisible(false)
       setVisible(true)
     })
   }, [])
@@ -32,6 +34,35 @@ export default function WeChatLoginDialog() {
     pendingRef.current = null
     setVisible(false)
     pending?.reject(new Error('用户取消登录'))
+  }
+
+  const resolveProfile = (profile: WeChatProfileDraft) => {
+    const pending = pendingRef.current
+    pendingRef.current = null
+    setVisible(false)
+    pending?.resolve(profile)
+  }
+
+  const authorizeWithWeChat = async () => {
+    try {
+      const profile = await Taro.getUserProfile({
+        desc: '用于登录后展示头像昵称并记录操作日志'
+      })
+      const userInfo = profile.userInfo
+      if (!userInfo?.nickName || !userInfo?.avatarUrl || userInfo.nickName === '微信用户') {
+        setManualVisible(true)
+        Taro.showToast({ title: '请手动选择头像昵称', icon: 'none' })
+        return
+      }
+
+      resolveProfile({
+        nickname: userInfo.nickName,
+        avatar_url: userInfo.avatarUrl
+      })
+    } catch {
+      setManualVisible(true)
+      Taro.showToast({ title: '请手动选择头像昵称', icon: 'none' })
+    }
   }
 
   const confirm = () => {
@@ -45,10 +76,7 @@ export default function WeChatLoginDialog() {
       return
     }
 
-    const pending = pendingRef.current
-    pendingRef.current = null
-    setVisible(false)
-    pending?.resolve({ nickname: name, avatar_path: avatarPath })
+    resolveProfile({ nickname: name, avatar_path: avatarPath })
   }
 
   if (!visible) {
@@ -61,35 +89,49 @@ export default function WeChatLoginDialog() {
         <Text className='wechat-login-title'>微信登录</Text>
         <Text className='wechat-login-desc'>{reason}</Text>
 
-        <Button
-          className='avatar-picker'
-          openType='chooseAvatar'
-          hoverClass='avatar-picker-hover'
-          onChooseAvatar={(event) => setAvatarPath(event.detail.avatarUrl)}
-        >
-          {avatarPath ? (
-            <Image className='avatar-preview' src={avatarPath} mode='aspectFill' />
-          ) : (
-            <Text className='avatar-placeholder'>选头像</Text>
-          )}
+        <Button className='wechat-auth-button' hoverClass='wechat-login-hover' onClick={authorizeWithWeChat}>
+          微信授权登录
         </Button>
 
-        <Input
-          className='nickname-input'
-          type='nickname'
-          value={nickname}
-          placeholder='请输入微信昵称'
-          maxlength={40}
-          onInput={(event) => setNickname(event.detail.value)}
-        />
+        <Button className='manual-toggle' hoverClass='wechat-login-hover' onClick={() => setManualVisible(true)}>
+          手动选择头像昵称
+        </Button>
+
+        {manualVisible ? (
+          <>
+            <Button
+              className='avatar-picker'
+              openType='chooseAvatar'
+              hoverClass='avatar-picker-hover'
+              onChooseAvatar={(event) => setAvatarPath(event.detail.avatarUrl)}
+            >
+              {avatarPath ? (
+                <Image className='avatar-preview' src={avatarPath} mode='aspectFill' />
+              ) : (
+                <Text className='avatar-placeholder'>选头像</Text>
+              )}
+            </Button>
+
+            <Input
+              className='nickname-input'
+              type='nickname'
+              value={nickname}
+              placeholder='请输入微信昵称'
+              maxlength={40}
+              onInput={(event) => setNickname(event.detail.value)}
+            />
+          </>
+        ) : null}
 
         <View className='wechat-login-actions'>
           <Button className='wechat-login-cancel' hoverClass='wechat-login-hover' onClick={closeWithError}>
             取消
           </Button>
-          <Button className='wechat-login-confirm' hoverClass='wechat-login-hover' onClick={confirm}>
-            确认登录
-          </Button>
+          {manualVisible ? (
+            <Button className='wechat-login-confirm' hoverClass='wechat-login-hover' onClick={confirm}>
+              确认登录
+            </Button>
+          ) : null}
         </View>
       </View>
     </View>
