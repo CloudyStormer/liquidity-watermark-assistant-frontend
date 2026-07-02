@@ -50,7 +50,7 @@ interface MediaFrame {
 
 const BRUSH_SIZES = [14, 28, 44]
 const UNSUPPORTED_IMAGE_EXTENSIONS = ['.webp']
-const DEFAULT_METHOD: CleanupMethod = 'inpaint'
+const DEFAULT_METHOD: CleanupMethod = 'blur'
 const MAX_BRUSH_REGIONS = 260
 
 function clamp(value: number) {
