@@ -1,5 +1,6 @@
 import Taro from '@tarojs/taro'
-import { WEAPP_LOGIN_PATH } from '@/config/api'
+import { API_BASE_URL, WEAPP_LOGIN_PATH } from '@/config/api'
+import { requestWeChatProfile } from './loginBridge'
 import { requestJson } from './request'
 
 const OPENID_STORAGE_KEY = 'wm_openid'
@@ -18,7 +19,7 @@ interface LoginOptions {
 
 interface WeChatProfile {
   nickname?: string
-  avatar_url?: string
+  avatar_path?: string
 }
 
 interface UserProfileResponse {
@@ -73,44 +74,13 @@ function getErrorMessage(error: unknown) {
   return payload?.errMsg || payload?.message || '未知错误'
 }
 
-async function confirmLogin(reason?: string) {
-  const result = await Taro.showModal({
-    title: '需要登录',
-    content: reason || '登录后才能继续使用本功能，并同步今日免费次数。',
-    confirmText: '微信登录',
-    cancelText: '取消'
-  })
-
-  if (!result.confirm) {
-    throw new Error('用户取消登录')
-  }
-}
-
-async function readWeChatProfile(): Promise<WeChatProfile> {
-  try {
-    const profile = await Taro.getUserProfile({
-      desc: '用于展示头像昵称和同步使用次数'
-    })
-    const userInfo = profile.userInfo
-    if (!userInfo?.nickName || !userInfo?.avatarUrl) {
-      throw new Error('微信未返回头像昵称')
-    }
-    return {
-      nickname: userInfo.nickName,
-      avatar_url: userInfo.avatarUrl
-    }
-  } catch (error) {
-    throw new Error(`需要授权微信头像昵称后才能继续：${getErrorMessage(error)}`)
-  }
-}
-
 async function exchangeCodeForOpenid(code: string, profile?: WeChatProfile) {
   const response = await requestJson<LoginResponse>(WEAPP_LOGIN_PATH, {
     method: 'POST',
     data: {
       code,
       nickname: profile?.nickname || '小程序用户',
-      avatar_url: profile?.avatar_url
+      avatar_url: undefined
     }
   })
 
@@ -128,7 +98,7 @@ async function createDevUser(openid: string, profile?: WeChatProfile) {
     data: {
       openid,
       nickname: profile?.nickname || '小程序用户',
-      avatar_url: profile?.avatar_url
+      avatar_url: undefined
     }
   })
 
@@ -140,6 +110,33 @@ async function validateStoredUser(openid: string) {
   const profile = await requestJson<UserProfileResponse>(`/users/${encodeURIComponent(openid)}/profile`)
   storeUser(profile.user)
   return profile.user
+}
+
+function parseUploadUser(response: Taro.uploadFile.SuccessCallbackResult) {
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    throw new Error(`头像上传失败：${response.statusCode}`)
+  }
+
+  return JSON.parse(response.data || '{}') as LoginResponse
+}
+
+async function uploadAvatar(openid: string, avatarPath?: string) {
+  if (!avatarPath) {
+    return getStoredUser()
+  }
+
+  try {
+    const response = await Taro.uploadFile({
+      url: `${API_BASE_URL}/users/${encodeURIComponent(openid)}/avatar`,
+      filePath: avatarPath,
+      name: 'file'
+    })
+    const user = parseUploadUser(response)
+    storeUser(user)
+    return user
+  } catch (error) {
+    throw new Error(getErrorMessage(error))
+  }
 }
 
 async function getLoginCode() {
@@ -155,18 +152,25 @@ async function getLoginCode() {
 }
 
 async function loginWithWeChatProfile(reason?: string) {
-  await confirmLogin(reason)
-  const profile = await readWeChatProfile()
+  const profileDraft = await requestWeChatProfile(reason)
+  const profile: WeChatProfile = {
+    nickname: profileDraft.nickname,
+    avatar_path: profileDraft.avatar_path
+  }
   const code = await getLoginCode()
 
   try {
-    return await exchangeCodeForOpenid(code, profile)
+    const openid = await exchangeCodeForOpenid(code, profile)
+    await uploadAvatar(openid, profile.avatar_path)
+    return openid
   } catch (error) {
     if (!canUseDevOpenid()) {
       throw new Error(`微信登录失败：${getErrorMessage(error)}`)
     }
     const devOpenid = `dev_openid_${hashCode(code)}`
-    return createDevUser(devOpenid, profile)
+    await createDevUser(devOpenid, profile)
+    await uploadAvatar(devOpenid, profile.avatar_path)
+    return devOpenid
   }
 }
 

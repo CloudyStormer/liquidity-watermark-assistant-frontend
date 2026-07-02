@@ -1,5 +1,6 @@
 import { PropsWithChildren } from 'react'
 import { useLaunch } from '@tarojs/taro'
+import WeChatLoginDialog from '@/components/WeChatLoginDialog'
 import './app.css'
 
 function App({ children }: PropsWithChildren) {
@@ -7,7 +8,12 @@ function App({ children }: PropsWithChildren) {
     console.log('Watermark assistant launched.')
   })
 
-  return children
+  return (
+    <>
+      {children}
+      <WeChatLoginDialog />
+    </>
+  )
 }
 
 export default App
