@@ -56,7 +56,7 @@ async function pickVideoFile() {
     const picked = await Taro.chooseVideo({
       sourceType: ['album'],
       compressed: false,
-      maxDuration: 300
+      maxDuration: 60
     })
     const file = toPickedVideo(picked)
     if (file) {
@@ -75,7 +75,7 @@ async function pickVideoFile() {
       count: 1,
       mediaType: ['video'],
       sourceType: ['album'],
-      maxDuration: 300
+      maxDuration: 60
     })
     const file = toPickedVideo((picked.tempFiles?.[0] || {}) as any)
     if (file) {

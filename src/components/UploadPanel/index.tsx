@@ -23,7 +23,7 @@ export default function UploadPanel({ processing, progress, statusLabel, onPicke
         count: 1,
         mediaType: ['image', 'video'],
         sourceType: ['album', 'camera'],
-        maxDuration: 300,
+        maxDuration: 60,
         camera: 'back'
       })
 
