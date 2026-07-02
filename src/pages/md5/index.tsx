@@ -6,11 +6,116 @@ import BottomNav from '@/components/BottomNav'
 import RewardedAdDialog from '@/components/RewardedAdDialog'
 import WeChatLoginDialog from '@/components/WeChatLoginDialog'
 import { requireLoggedIn } from '@/services/auth'
-import { grantDailyQuota } from '@/services/quota'
 import { downloadToTempFile, toApiUrl, uploadMd5Variant } from '@/services/mediaJobs'
+import { grantDailyQuota } from '@/services/quota'
 import type { Md5FileResponse, PickedMedia } from '@/types/media'
 import { formatFileSize, getFileName } from '@/utils/media'
 import './index.css'
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message) {
+    return error.message
+  }
+
+  const payload = error as { errMsg?: string; message?: string }
+  return payload?.errMsg || payload?.message || String(error || '未知错误')
+}
+
+function isCancelError(error: unknown) {
+  const message = getErrorMessage(error).toLowerCase()
+  return message.includes('cancel') || message.includes('取消')
+}
+
+function toPickedVideo(file: {
+  path?: string
+  tempFilePath?: string
+  name?: string
+  size?: number
+  duration?: number
+  width?: number
+  height?: number
+}): PickedMedia | null {
+  const path = file.tempFilePath || file.path
+  if (!path) {
+    return null
+  }
+
+  return {
+    path,
+    type: 'video',
+    size: Number(file.size) || 0,
+    originalName: file.name || getFileName(path),
+    duration: Number(file.duration) || undefined,
+    width: Number(file.width) || undefined,
+    height: Number(file.height) || undefined
+  }
+}
+
+async function pickVideoFile() {
+  const errors: string[] = []
+
+  try {
+    const picked = await Taro.chooseVideo({
+      sourceType: ['album', 'camera'],
+      compressed: false,
+      maxDuration: 300,
+      camera: 'back'
+    })
+    const file = toPickedVideo(picked)
+    if (file) {
+      return file
+    }
+    errors.push('chooseVideo 未返回文件路径')
+  } catch (error) {
+    if (isCancelError(error)) {
+      throw error
+    }
+    errors.push(`chooseVideo: ${getErrorMessage(error)}`)
+  }
+
+  try {
+    const picked = await Taro.chooseMedia({
+      count: 1,
+      mediaType: ['video'],
+      sourceType: ['album', 'camera'],
+      maxDuration: 300,
+      camera: 'back'
+    })
+    const file = toPickedVideo((picked.tempFiles?.[0] || {}) as any)
+    if (file) {
+      return file
+    }
+    errors.push('chooseMedia 未返回文件路径')
+  } catch (error) {
+    if (isCancelError(error)) {
+      throw error
+    }
+    errors.push(`chooseMedia: ${getErrorMessage(error)}`)
+  }
+
+  try {
+    const chooseMessageFile = (Taro as any).chooseMessageFile
+    if (typeof chooseMessageFile !== 'function') {
+      throw new Error('当前环境不支持 chooseMessageFile')
+    }
+    const picked = await chooseMessageFile({
+      count: 1,
+      type: 'video'
+    })
+    const file = toPickedVideo((picked.tempFiles?.[0] || {}) as any)
+    if (file) {
+      return file
+    }
+    errors.push('chooseMessageFile 未返回文件路径')
+  } catch (error) {
+    if (isCancelError(error)) {
+      throw error
+    }
+    errors.push(`chooseMessageFile: ${getErrorMessage(error)}`)
+  }
+
+  throw new Error(errors.join('\n') || '选择视频失败')
+}
 
 export default function Md5Page() {
   const [selectedFile, setSelectedFile] = useState<PickedMedia | null>(null)
@@ -27,31 +132,22 @@ export default function Md5Page() {
 
     try {
       await requireLoggedIn('登录后才能上传视频并生成新的 MD5 文件。')
-      const picked = await Taro.chooseVideo({
-        sourceType: ['album', 'camera'],
-        maxDuration: 300,
-        camera: 'back'
-      })
-      if (!picked.tempFilePath) {
-        return
-      }
-
-      const nextFile: PickedMedia = {
-        path: picked.tempFilePath,
-        type: 'video',
-        size: Number(picked.size) || 0,
-        originalName: getFileName(picked.tempFilePath),
-        duration: Number(picked.duration) || undefined,
-        width: Number(picked.width) || undefined,
-        height: Number(picked.height) || undefined
-      }
+      const nextFile = await pickVideoFile()
       setSelectedFile(nextFile)
       await startMd5(nextFile)
     } catch (error) {
-      const message = error instanceof Error ? error.message : ''
-      if (!message.includes('cancel') && !message.includes('取消') && !message.includes('登录')) {
-        Taro.showToast({ title: '选择失败', icon: 'none' })
+      if (isCancelError(error)) {
+        return
       }
+      const message = getErrorMessage(error)
+      if (message.includes('登录')) {
+        return
+      }
+      Taro.showModal({
+        title: '选择视频失败',
+        content: message,
+        showCancel: false
+      })
     }
   }
 
@@ -70,7 +166,7 @@ export default function Md5Page() {
       setResult(response)
       Taro.showToast({ title: 'MD5 已修改', icon: 'success' })
     } catch (error) {
-      const message = error instanceof Error ? error.message : '请稍后重试'
+      const message = getErrorMessage(error) || '请稍后重试'
       if (message.includes('429') || message.includes('次数')) {
         setRewardVisible(true)
       } else {
@@ -102,7 +198,7 @@ export default function Md5Page() {
     } catch (error) {
       Taro.showModal({
         title: '保存失败',
-        content: error instanceof Error ? error.message : '请确认相册权限已开启，或稍后重试。',
+        content: getErrorMessage(error) || '请确认相册权限已开启，或稍后重试。',
         showCancel: false
       })
     }
