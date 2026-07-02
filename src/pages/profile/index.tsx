@@ -4,6 +4,7 @@ import { Button, Image, Input, Text, Textarea, View } from '@tarojs/components'
 import BottomNav from '@/components/BottomNav'
 import WeChatLoginDialog from '@/components/WeChatLoginDialog'
 import { getStoredOpenid, getStoredUser, requireLoggedIn, type LoginResponse } from '@/services/auth'
+import { toApiUrl } from '@/services/mediaJobs'
 import { getDailyQuota } from '@/services/quota'
 import { submitFeedback, submitRating } from '@/services/userActions'
 import type { DailyQuotaResponse } from '@/types/media'
@@ -52,18 +53,6 @@ const menuItems: MenuItem[] = [
   }
 ]
 
-function maskOpenid(openid: string) {
-  if (!openid) {
-    return ''
-  }
-
-  if (openid.length <= 10) {
-    return openid
-  }
-
-  return `${openid.slice(0, 6)}...${openid.slice(-4)}`
-}
-
 export default function ProfilePage() {
   const [user, setUser] = useState<LoginResponse | null>(() => getStoredUser())
   const [quota, setQuota] = useState<DailyQuotaResponse | null>(null)
@@ -78,6 +67,7 @@ export default function ProfilePage() {
 
   const loggedOpenid = user?.openid || getStoredOpenid()
   const isLoggedIn = Boolean(loggedOpenid)
+  const avatarUrl = user?.avatar_url ? toApiUrl(user.avatar_url) : ''
 
   const refreshProfile = async () => {
     const storedUser = getStoredUser()
@@ -181,8 +171,8 @@ export default function ProfilePage() {
       </View>
 
       <View className='user-card'>
-        {user?.avatar_url ? (
-          <Image className='avatar-image' src={user.avatar_url} mode='aspectFill' />
+        {avatarUrl ? (
+          <Image className='avatar-image' src={avatarUrl} mode='aspectFill' />
         ) : (
           <View className='avatar-mark'>
             <Text>{isLoggedIn ? '我' : '登'}</Text>
@@ -191,7 +181,7 @@ export default function ProfilePage() {
         <View className='user-copy'>
           <Text className='user-name'>{user?.nickname || (isLoggedIn ? '微信用户' : '未登录')}</Text>
           <Text className='user-desc'>
-            {isLoggedIn ? `openid ${maskOpenid(loggedOpenid)}` : '登录后查看头像、昵称和使用次数'}
+            {isLoggedIn ? '已登录，可查看今日使用次数' : '登录后查看头像、昵称和使用次数'}
           </Text>
         </View>
         <Button className='login-action' hoverClass='login-action-hover' onClick={handleLogin}>
