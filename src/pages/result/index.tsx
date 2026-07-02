@@ -11,9 +11,19 @@ import type { ProcessedFile } from '@/types/media'
 import { getLatestResult } from '@/utils/storage'
 import './index.css'
 
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message) {
+    return error.message
+  }
+
+  const payload = error as { errMsg?: string; message?: string }
+  return payload?.errMsg || payload?.message || '请在小程序设置中开启相册权限后重试。'
+}
+
 export default function ResultPage() {
   const [fileData, setFileData] = useState<ProcessedFile>(MOCK_RESULT)
   const [downloaded, setDownloaded] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   useLoad(() => {
     setFileData(getLatestResult() || MOCK_RESULT)
@@ -32,8 +42,14 @@ export default function ResultPage() {
   }
 
   const saveToAlbum = async () => {
+    if (saving) {
+      return
+    }
+
+    setSaving(true)
     try {
       await requireLoggedIn('登录后才能下载保存处理结果。')
+      Taro.showLoading({ title: '保存中...' })
       const localPath = /^https?:\/\//i.test(fileData.processedUrl)
         ? await downloadToTempFile(fileData.processedUrl)
         : fileData.processedUrl
@@ -42,14 +58,18 @@ export default function ResultPage() {
       } else {
         await Taro.saveImageToPhotosAlbum({ filePath: localPath })
       }
+      Taro.hideLoading()
       setDownloaded(true)
       Taro.showToast({ title: '已保存', icon: 'success' })
     } catch (error) {
+      Taro.hideLoading()
       Taro.showModal({
         title: '保存失败',
-        content: error instanceof Error ? error.message : '请在小程序设置中开启相册权限后重试。',
+        content: getErrorMessage(error),
         showCancel: false
       })
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -108,6 +128,8 @@ export default function ResultPage() {
         <Button
           className={`download-button ${downloaded ? 'is-done' : ''}`}
           hoverClass='download-button-hover'
+          loading={saving}
+          disabled={saving}
           onClick={() => {
             if (downloaded) {
               Taro.showToast({ title: '文件已保存', icon: 'none' })
@@ -116,7 +138,7 @@ export default function ResultPage() {
             saveToAlbum()
           }}
         >
-          {downloaded ? '已保存到相册' : '保存到相册'}
+          {saving ? '保存中...' : downloaded ? '已保存到相册' : '保存到相册'}
         </Button>
       </View>
 

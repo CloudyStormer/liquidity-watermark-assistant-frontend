@@ -27,7 +27,6 @@ function isCancelError(error: unknown) {
 }
 
 function toPickedVideo(file: {
-  path?: string
   tempFilePath?: string
   name?: string
   size?: number
@@ -35,16 +34,15 @@ function toPickedVideo(file: {
   width?: number
   height?: number
 }): PickedMedia | null {
-  const path = file.tempFilePath || file.path
-  if (!path) {
+  if (!file.tempFilePath) {
     return null
   }
 
   return {
-    path,
+    path: file.tempFilePath,
     type: 'video',
     size: Number(file.size) || 0,
-    originalName: file.name || getFileName(path),
+    originalName: file.name || getFileName(file.tempFilePath),
     duration: Number(file.duration) || undefined,
     width: Number(file.width) || undefined,
     height: Number(file.height) || undefined
@@ -56,77 +54,55 @@ async function pickVideoFile() {
 
   try {
     const picked = await Taro.chooseVideo({
-      sourceType: ['album', 'camera'],
+      sourceType: ['album'],
       compressed: false,
-      maxDuration: 300,
-      camera: 'back'
+      maxDuration: 300
     })
     const file = toPickedVideo(picked)
     if (file) {
       return file
     }
-    errors.push('chooseVideo 未返回文件路径')
+    errors.push('系统相册未返回视频路径')
   } catch (error) {
     if (isCancelError(error)) {
       throw error
     }
-    errors.push(`chooseVideo: ${getErrorMessage(error)}`)
+    errors.push(getErrorMessage(error))
   }
 
   try {
     const picked = await Taro.chooseMedia({
       count: 1,
       mediaType: ['video'],
-      sourceType: ['album', 'camera'],
-      maxDuration: 300,
-      camera: 'back'
+      sourceType: ['album'],
+      maxDuration: 300
     })
     const file = toPickedVideo((picked.tempFiles?.[0] || {}) as any)
     if (file) {
       return file
     }
-    errors.push('chooseMedia 未返回文件路径')
+    errors.push('系统相册未返回视频路径')
   } catch (error) {
     if (isCancelError(error)) {
       throw error
     }
-    errors.push(`chooseMedia: ${getErrorMessage(error)}`)
+    errors.push(getErrorMessage(error))
   }
 
-  try {
-    const chooseMessageFile = (Taro as any).chooseMessageFile
-    if (typeof chooseMessageFile !== 'function') {
-      throw new Error('当前环境不支持 chooseMessageFile')
-    }
-    const picked = await chooseMessageFile({
-      count: 1,
-      type: 'video'
-    })
-    const file = toPickedVideo((picked.tempFiles?.[0] || {}) as any)
-    if (file) {
-      return file
-    }
-    errors.push('chooseMessageFile 未返回文件路径')
-  } catch (error) {
-    if (isCancelError(error)) {
-      throw error
-    }
-    errors.push(`chooseMessageFile: ${getErrorMessage(error)}`)
-  }
-
-  throw new Error(errors.join('\n') || '选择视频失败')
+  throw new Error(errors.filter(Boolean).join('\n') || '选择视频失败')
 }
 
 export default function Md5Page() {
   const [selectedFile, setSelectedFile] = useState<PickedMedia | null>(null)
   const [computing, setComputing] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [progress, setProgress] = useState(0)
   const [result, setResult] = useState<Md5FileResponse | null>(null)
   const [rewardVisible, setRewardVisible] = useState(false)
   const resultVideoUrl = result ? toApiUrl(result.result_url) : ''
 
   const chooseVideo = async () => {
-    if (computing) {
+    if (computing || saving) {
       return
     }
 
@@ -186,21 +162,27 @@ export default function Md5Page() {
   }
 
   const saveResult = async () => {
-    if (!result) {
+    if (!result || saving) {
       return
     }
 
+    setSaving(true)
     try {
       await requireLoggedIn('登录后才能下载保存生成的新视频。')
+      Taro.showLoading({ title: '保存中...' })
       const tempPath = await downloadToTempFile(result.result_url)
       await Taro.saveVideoToPhotosAlbum({ filePath: tempPath })
+      Taro.hideLoading()
       Taro.showToast({ title: '已保存', icon: 'success' })
     } catch (error) {
+      Taro.hideLoading()
       Taro.showModal({
         title: '保存失败',
         content: getErrorMessage(error) || '请确认相册权限已开启，或稍后重试。',
         showCancel: false
       })
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -244,7 +226,7 @@ export default function Md5Page() {
 
       <View className='md5-upload-card'>
         <Text className='md5-upload-title'>
-          {selectedFile ? selectedFile.originalName : '从手机里选择要修改 MD5 的视频'}
+          {selectedFile ? selectedFile.originalName : '从系统相册选择要修改 MD5 的视频'}
         </Text>
         {selectedFile ? (
           <Text className='md5-upload-meta'>{formatFileSize(selectedFile.size)}</Text>
@@ -253,6 +235,7 @@ export default function Md5Page() {
           className='md5-pick-button'
           hoverClass='md5-pick-button-hover'
           loading={computing}
+          disabled={computing || saving}
           onClick={chooseVideo}
         >
           {selectedFile ? '重新选择视频' : '选择视频'}
@@ -296,8 +279,14 @@ export default function Md5Page() {
               复制
             </Button>
           </View>
-          <Button className='save-md5-button' hoverClass='save-md5-button-hover' onClick={saveResult}>
-            保存新视频
+          <Button
+            className='save-md5-button'
+            hoverClass='save-md5-button-hover'
+            loading={saving}
+            disabled={saving}
+            onClick={saveResult}
+          >
+            {saving ? '保存中...' : '保存新视频'}
           </Button>
         </View>
       ) : null}

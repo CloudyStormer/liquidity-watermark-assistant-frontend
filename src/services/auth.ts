@@ -6,6 +6,8 @@ import { requestJson } from './request'
 
 const OPENID_STORAGE_KEY = 'wm_openid'
 const USER_STORAGE_KEY = 'wm_user'
+const DEFAULT_NICKNAME = '小程序用户'
+
 let sessionProfileConfirmed = false
 
 export interface LoginResponse {
@@ -34,6 +36,15 @@ function hashCode(input: string) {
   return Math.abs(hash).toString(36)
 }
 
+function hasCompleteProfile(user: LoginResponse | null | undefined) {
+  return Boolean(
+    user?.openid &&
+    user.nickname &&
+    user.nickname !== DEFAULT_NICKNAME &&
+    user.avatar_url
+  )
+}
+
 export function getStoredOpenid() {
   try {
     return Taro.getStorageSync<string>(OPENID_STORAGE_KEY) || ''
@@ -53,11 +64,7 @@ export function getStoredUser() {
 function storeUser(user: LoginResponse) {
   Taro.setStorageSync(OPENID_STORAGE_KEY, user.openid)
   Taro.setStorageSync(USER_STORAGE_KEY, user)
-}
-
-function clearStoredUser() {
-  Taro.removeStorageSync(OPENID_STORAGE_KEY)
-  Taro.removeStorageSync(USER_STORAGE_KEY)
+  sessionProfileConfirmed = hasCompleteProfile(user)
 }
 
 function canUseDevOpenid() {
@@ -78,7 +85,7 @@ async function exchangeCodeForOpenid(code: string, profile?: WeChatProfile) {
     method: 'POST',
     data: {
       code,
-      nickname: profile?.nickname || '小程序用户',
+      nickname: profile?.nickname || DEFAULT_NICKNAME,
       avatar_url: profile?.avatar_url
     }
   })
@@ -96,7 +103,7 @@ async function createDevUser(openid: string, profile?: WeChatProfile) {
     method: 'POST',
     data: {
       openid,
-      nickname: profile?.nickname || '小程序用户',
+      nickname: profile?.nickname || DEFAULT_NICKNAME,
       avatar_url: profile?.avatar_url
     }
   })
@@ -112,11 +119,6 @@ export async function fetchUserProfile(openid = getStoredOpenid()) {
   const profile = await requestJson<UserProfileResponse>(`/users/${encodeURIComponent(openid)}/profile`)
   storeUser(profile.user)
   return profile
-}
-
-async function validateStoredUser(openid: string) {
-  const profile = await fetchUserProfile(openid)
-  return profile.user
 }
 
 function parseUploadUser(response: Taro.uploadFile.SuccessCallbackResult) {
@@ -168,6 +170,7 @@ async function loginWithWeChatProfile(reason?: string) {
   if (!profile.nickname || (!profile.avatar_path && !profile.avatar_url)) {
     throw new Error('微信昵称和头像缺失，无法完成登录')
   }
+
   const code = await getLoginCode()
 
   try {
@@ -194,23 +197,23 @@ async function loginWithWeChatProfile(reason?: string) {
 export async function ensureLoggedIn(options: LoginOptions = {}) {
   const storedOpenid = getStoredOpenid()
   const needsProfile = options.needProfile !== false
+
   if (storedOpenid) {
-    if (needsProfile && !sessionProfileConfirmed) {
-      return loginWithWeChatProfile(options.reason || '请先使用微信头像和昵称完成登录后继续。')
+    if (!needsProfile) {
+      return storedOpenid
     }
 
     const storedUser = getStoredUser()
-    if (needsProfile && (!storedUser?.nickname || !storedUser?.avatar_url || storedUser.nickname === '小程序用户')) {
-      return loginWithWeChatProfile(options.reason || '需要补充微信头像昵称后才能继续使用本功能。')
+    if (hasCompleteProfile(storedUser) && storedUser?.openid === storedOpenid) {
+      sessionProfileConfirmed = true
+      return storedOpenid
     }
 
-    try {
-      await validateStoredUser(storedOpenid)
-    } catch {
-      clearStoredUser()
-      return loginWithWeChatProfile(options.reason || '登录状态已过期，请重新微信登录后继续。')
+    if (sessionProfileConfirmed) {
+      return storedOpenid
     }
-    return storedOpenid
+
+    return loginWithWeChatProfile(options.reason || '请先使用微信头像和昵称完成登录后继续。')
   }
 
   const openid = await loginWithWeChatProfile(options.reason)
