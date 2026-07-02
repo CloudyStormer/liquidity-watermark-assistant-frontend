@@ -5,6 +5,7 @@ import { requestJson } from './request'
 
 const OPENID_STORAGE_KEY = 'wm_openid'
 const USER_STORAGE_KEY = 'wm_user'
+let sessionProfileConfirmed = false
 
 export interface LoginResponse {
   openid: string
@@ -162,6 +163,7 @@ async function loginWithWeChatProfile(reason?: string) {
   try {
     const openid = await exchangeCodeForOpenid(code, profile)
     await uploadAvatar(openid, profile.avatar_path)
+    sessionProfileConfirmed = true
     return openid
   } catch (error) {
     if (!canUseDevOpenid()) {
@@ -170,6 +172,7 @@ async function loginWithWeChatProfile(reason?: string) {
     const devOpenid = `dev_openid_${hashCode(code)}`
     await createDevUser(devOpenid, profile)
     await uploadAvatar(devOpenid, profile.avatar_path)
+    sessionProfileConfirmed = true
     return devOpenid
   }
 }
@@ -178,6 +181,10 @@ export async function ensureLoggedIn(options: LoginOptions = {}) {
   const storedOpenid = getStoredOpenid()
   const needsProfile = options.needProfile !== false
   if (storedOpenid) {
+    if (needsProfile && !sessionProfileConfirmed) {
+      return loginWithWeChatProfile(options.reason || '请先使用微信头像和昵称完成登录后继续。')
+    }
+
     const storedUser = getStoredUser()
     if (needsProfile && (!storedUser?.nickname || !storedUser?.avatar_url || storedUser.nickname === '小程序用户')) {
       return loginWithWeChatProfile(options.reason || '需要补充微信头像昵称后才能继续使用本功能。')

@@ -28,6 +28,7 @@ export function requestWeChatProfile(reason?: string) {
       return
     }
 
-    listeners.forEach((listener) => listener(payload))
+    const activeListener = Array.from(listeners).at(-1)
+    activeListener?.(payload)
   })
 }

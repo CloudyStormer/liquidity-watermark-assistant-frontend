@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { Button, Image, Input, Text, Textarea, View } from '@tarojs/components'
 import BottomNav from '@/components/BottomNav'
+import WeChatLoginDialog from '@/components/WeChatLoginDialog'
 import { getStoredOpenid, getStoredUser, requireLoggedIn, type LoginResponse } from '@/services/auth'
 import { getDailyQuota } from '@/services/quota'
 import { submitFeedback, submitRating } from '@/services/userActions'
@@ -326,6 +327,7 @@ export default function ProfilePage() {
       ) : null}
 
       <BottomNav current='profile' />
+      <WeChatLoginDialog />
     </View>
   )
 }

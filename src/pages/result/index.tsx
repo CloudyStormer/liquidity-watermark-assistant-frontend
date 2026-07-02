@@ -4,6 +4,7 @@ import { Button, Image, Text, Video, View } from '@tarojs/components'
 import AdCard from '@/components/AdCard'
 import BottomNav from '@/components/BottomNav'
 import RewardedAdDialog from '@/components/RewardedAdDialog'
+import WeChatLoginDialog from '@/components/WeChatLoginDialog'
 import { MOCK_RESULT } from '@/data/constants'
 import { requireLoggedIn } from '@/services/auth'
 import { downloadToTempFile } from '@/services/mediaJobs'
@@ -154,6 +155,7 @@ export default function ResultPage() {
         onWatch={saveToAlbum}
         onClose={() => setRewardVisible(false)}
       />
+      <WeChatLoginDialog />
     </View>
   )
 }

@@ -6,6 +6,7 @@ import BottomNav from '@/components/BottomNav'
 import DisclaimerModal from '@/components/DisclaimerModal'
 import QuotaBadge from '@/components/QuotaBadge'
 import RewardedAdDialog from '@/components/RewardedAdDialog'
+import WeChatLoginDialog from '@/components/WeChatLoginDialog'
 import { FREE_QUOTA_PER_DAY } from '@/data/constants'
 import { requireLoggedIn } from '@/services/auth'
 import { toApiUrl, uploadCleanupJob, waitForMediaJob } from '@/services/mediaJobs'
@@ -579,6 +580,7 @@ export default function IndexPage() {
           onWatch={handleWatchForQuota}
           onClose={() => setRewardVisible(false)}
         />
+        <WeChatLoginDialog />
       </View>
     )
   }
@@ -651,6 +653,7 @@ export default function IndexPage() {
         agreeDisclaimer()
         setDisclaimerVisible(false)
       }} />
+      <WeChatLoginDialog />
     </View>
   )
 }

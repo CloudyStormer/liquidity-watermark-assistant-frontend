@@ -3,6 +3,7 @@ import Taro from '@tarojs/taro'
 import { Button, Text, Video, View } from '@tarojs/components'
 import AdCard from '@/components/AdCard'
 import BottomNav from '@/components/BottomNav'
+import WeChatLoginDialog from '@/components/WeChatLoginDialog'
 import { requireLoggedIn } from '@/services/auth'
 import { downloadToTempFile, toApiUrl, uploadMd5Variant } from '@/services/mediaJobs'
 import type { Md5FileResponse, PickedMedia } from '@/types/media'
@@ -196,6 +197,7 @@ export default function Md5Page() {
 
       <Text className='md5-note'>注：文件会上传到后端生成新副本，处理完成后可下载保存。</Text>
       <BottomNav current='md5' />
+      <WeChatLoginDialog />
     </View>
   )
 }
