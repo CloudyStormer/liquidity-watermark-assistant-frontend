@@ -217,11 +217,13 @@
 }
 
 .editor-page {
-  min-height: 100vh;
-  padding: calc(104rpx + env(safe-area-inset-top)) 30rpx 34rpx;
+  height: 100vh;
+  padding: calc(148rpx + env(safe-area-inset-top)) 30rpx calc(24rpx + env(safe-area-inset-bottom));
   background: #0b1e31;
   color: #ffffff;
-  overflow-x: hidden;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .editor-topbar {
@@ -230,17 +232,22 @@
   right: 0;
   top: 0;
   z-index: 20;
-  height: calc(104rpx + env(safe-area-inset-top));
-  padding: calc(22rpx + env(safe-area-inset-top)) 30rpx 0;
+  height: calc(136rpx + env(safe-area-inset-top));
+  padding: calc(54rpx + env(safe-area-inset-top)) 30rpx 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   background: #07192b;
 }
 
-.editor-back {
+.editor-back,
+.editor-top-placeholder {
   width: 72rpx;
   height: 72rpx;
+  flex-shrink: 0;
+}
+
+.editor-back {
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
@@ -250,30 +257,25 @@
   font-weight: 800;
 }
 
-.editor-button-hover {
-  opacity: 0.78;
+.editor-title {
+  color: #ffffff;
+  font-size: 30rpx;
+  line-height: 42rpx;
+  font-weight: 900;
 }
 
-.review-pill {
-  height: 58rpx;
-  padding: 0 28rpx;
-  border-radius: 8rpx;
-  background: #05bd72;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  font-size: 26rpx;
-  line-height: 58rpx;
-  font-weight: 800;
+.editor-button-hover {
+  opacity: 0.78;
 }
 
 .editor-preview-box {
   position: relative;
   width: 100%;
-  height: 938rpx;
+  flex: 1;
+  min-height: 420rpx;
   background: #000000;
   overflow: hidden;
+  touch-action: none;
 }
 
 .editor-media {
@@ -282,13 +284,28 @@
   background: #000000;
 }
 
-.brush-dot {
+.editor-overlay {
+  position: absolute;
+  z-index: 4;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.brush-dot,
+.brush-segment {
   position: absolute;
   z-index: 5;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
+  border-radius: 999rpx;
   background: rgba(105, 55, 245, 0.9);
   pointer-events: none;
+}
+
+.brush-dot {
+  transform: translate(-50%, -50%);
+}
+
+.brush-segment {
+  transform-origin: 0 50%;
 }
 
 .selection-box {
@@ -329,23 +346,24 @@
 }
 
 .editor-control-wrap {
-  margin-top: 18rpx;
+  margin-top: 14rpx;
+  flex-shrink: 0;
 }
 
 .editor-hint {
   display: block;
-  padding: 16rpx 20rpx;
+  padding: 12rpx 18rpx;
   border-radius: 8rpx;
   background: rgba(102, 146, 190, 0.42);
   color: #d6e4f5;
-  font-size: 24rpx;
-  line-height: 34rpx;
+  font-size: 23rpx;
+  line-height: 32rpx;
   text-align: center;
 }
 
 .control-panel {
   margin-top: 10rpx;
-  padding: 16rpx 20rpx;
+  padding: 14rpx 18rpx;
   border-radius: 8rpx;
   background: rgba(82, 126, 169, 0.56);
 }
@@ -354,11 +372,11 @@
   display: flex;
   align-items: center;
   gap: 10rpx;
-  min-height: 68rpx;
+  min-height: 64rpx;
 }
 
 .second-row {
-  margin-top: 10rpx;
+  margin-top: 8rpx;
 }
 
 .control-label {
@@ -366,18 +384,14 @@
   font-size: 26rpx;
   line-height: 36rpx;
   font-weight: 700;
-}
-
-.model-label {
-  margin-left: 10rpx;
+  flex-shrink: 0;
 }
 
 .mode-button,
-.utility-button,
-.model-picker {
-  min-width: 98rpx;
-  height: 60rpx;
-  padding: 0 22rpx;
+.utility-button {
+  min-width: 108rpx;
+  height: 58rpx;
+  padding: 0 20rpx;
   border-radius: 8rpx;
   background: rgba(255, 255, 255, 0.16);
   color: #d8e4ef;
@@ -385,8 +399,9 @@
   align-items: center;
   justify-content: center;
   font-size: 24rpx;
-  line-height: 60rpx;
+  line-height: 58rpx;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .mode-button.is-active {
@@ -397,17 +412,6 @@
 
 .mode-button-hover {
   opacity: 0.8;
-}
-
-.model-picker {
-  width: 248rpx;
-  justify-content: space-between;
-}
-
-.picker-arrow {
-  margin-left: 8rpx;
-  color: #aebfd1;
-  font-size: 18rpx;
 }
 
 .brush-size {
@@ -434,12 +438,19 @@
 }
 
 .editor-ad {
-  margin-top: 22rpx;
+  margin-top: 14rpx;
+  flex-shrink: 0;
+}
+
+.editor-ad .ad-card {
+  margin: 0;
+  min-height: 136rpx;
+  border-radius: 8rpx;
 }
 
 .start-clean-button {
-  margin-top: 26rpx;
-  height: 92rpx;
+  margin-top: 16rpx;
+  height: 86rpx;
   border-radius: 8rpx;
   background: #3364ff;
   color: #ffffff;
@@ -447,8 +458,9 @@
   align-items: center;
   justify-content: center;
   font-size: 32rpx;
-  line-height: 92rpx;
+  line-height: 86rpx;
   font-weight: 900;
+  flex-shrink: 0;
 }
 
 .start-clean-button-hover {
@@ -456,7 +468,8 @@
 }
 
 .processing-card {
-  min-height: 740rpx;
+  flex: 1;
+  min-height: 420rpx;
   background: rgba(0, 0, 0, 0.48);
   display: flex;
   flex-direction: column;

@@ -27,7 +27,7 @@ export default function QuotaBadge({ used, total = FREE_QUOTA_PER_DAY, onGainQuo
         hoverClass='quota-action-hover'
         onClick={onGainQuota}
       >
-        {depleted ? '看广告续次' : '免费使用'}
+        {depleted ? '看广告+1次' : '免费使用'}
       </Button>
     </View>
   )

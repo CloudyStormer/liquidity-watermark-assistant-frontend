@@ -13,13 +13,13 @@ interface RewardedAdDialogProps {
 const copyMap: Record<RewardReason, { title: string; desc: string; reward: string }> = {
   quota: {
     title: '今日次数已用完',
-    desc: '每观看一个短视频广告，立即获得 1 次额外处理机会。',
-    reward: '+1 次处理机会'
+    desc: '每看完一次广告，立即增加 1 次今日处理次数。',
+    reward: '+1 次'
   },
   download: {
     title: '免费下载',
-    desc: '观看一个短视频广告，即可免费下载处理好的文件。',
-    reward: '解锁下载权限'
+    desc: '观看一次广告后，可以保存处理好的文件。',
+    reward: '解锁下载'
   }
 }
 
@@ -39,12 +39,12 @@ export default function RewardedAdDialog({ visible, reason, onWatch, onClose }: 
         </Button>
         <View className='reward-content'>
           <View className='reward-icon'>
-            <Text>播</Text>
+            <Text>AD</Text>
           </View>
           <Text className='reward-title'>{copy.title}</Text>
           <Text className='reward-desc'>{copy.desc}</Text>
           <View className='reward-pill'>
-            <Text className='reward-pill-icon'>礼</Text>
+            <Text className='reward-pill-icon'>+</Text>
             <Text className='reward-pill-text'>{copy.reward}</Text>
           </View>
           <Button className='reward-primary' hoverClass='reward-primary-hover' onClick={onWatch}>

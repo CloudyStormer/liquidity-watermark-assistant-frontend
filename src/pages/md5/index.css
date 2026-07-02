@@ -12,68 +12,37 @@
 }
 
 .md5-ad-row {
-  margin: 0 22rpx 34rpx;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24rpx;
-  align-items: center;
+  margin: 0 22rpx 24rpx;
 }
 
-.md5-ad-left {
-  min-height: 330rpx;
-}
-
-.md5-ad-left .ad-card {
+.md5-ad-row .ad-card {
   margin: 0;
-  height: 330rpx;
+  min-height: 180rpx;
   border-radius: 8rpx;
 }
 
-.md5-ad-copy {
-  min-height: 330rpx;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
+.md5-info-card {
+  margin: 0 22rpx 28rpx;
+  padding: 24rpx 28rpx;
+  border-radius: 8rpx;
+  background: #f8fafc;
+  border: 1rpx solid #edf2f7;
 }
 
-.ad-avatar {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 16rpx;
-  background: linear-gradient(135deg, #7cc4ff, #34d399);
-}
-
-.ad-title {
-  margin-top: 18rpx;
+.md5-info-title {
+  display: block;
   color: #111111;
   font-size: 28rpx;
   line-height: 40rpx;
   font-weight: 900;
 }
 
-.ad-subtitle {
+.md5-info-body {
+  display: block;
   margin-top: 10rpx;
-  color: #555555;
+  color: #667085;
   font-size: 24rpx;
-  line-height: 34rpx;
-}
-
-.ad-action {
-  margin-top: 26rpx;
-  width: 210rpx;
-  height: 72rpx;
-  border-radius: 8rpx;
-  background: #10c76f;
-  color: #ffffff;
-  font-size: 28rpx;
-  line-height: 72rpx;
-  font-weight: 800;
-}
-
-.ad-action-hover {
-  background: #0fab61;
+  line-height: 38rpx;
 }
 
 .md5-upload-card {
@@ -243,13 +212,10 @@
 }
 
 .md5-note {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: calc(126rpx + env(safe-area-inset-bottom));
-  color: #c7c7c7;
+  display: block;
+  margin: 20rpx 32rpx calc(126rpx + env(safe-area-inset-bottom));
+  color: #98a2b3;
   font-size: 24rpx;
   line-height: 34rpx;
   text-align: center;
-  pointer-events: none;
 }

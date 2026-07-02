@@ -3,11 +3,17 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import { Button, Image, Input, Text, Textarea, View } from '@tarojs/components'
 import BottomNav from '@/components/BottomNav'
 import WeChatLoginDialog from '@/components/WeChatLoginDialog'
-import { getStoredOpenid, getStoredUser, requireLoggedIn, type LoginResponse } from '@/services/auth'
+import {
+  fetchUserProfile,
+  getStoredOpenid,
+  getStoredUser,
+  requireLoggedIn,
+  type LoginResponse
+} from '@/services/auth'
 import { toApiUrl } from '@/services/mediaJobs'
 import { getDailyQuota } from '@/services/quota'
 import { submitFeedback, submitRating } from '@/services/userActions'
-import type { DailyQuotaResponse } from '@/types/media'
+import type { DailyQuotaResponse, UserProfileResponse } from '@/types/media'
 import './index.css'
 
 interface MenuItem {
@@ -20,41 +26,19 @@ interface MenuItem {
 
 const APP_VERSION = '1.0.0'
 
-const menuItems: MenuItem[] = [
-  {
-    id: 'feedback',
-    icon: '馈',
-    label: '用户反馈'
-  },
-  {
-    id: 'rate',
-    icon: '评',
-    label: '给我们评分'
-  },
-  {
-    id: 'privacy',
-    icon: '隐',
-    label: '隐私协议',
-    content:
-      '隐私协议\n\n本应用仅为处理自有或已授权素材提供工具能力。上传素材仅用于本次处理和临时下载，建议您不要上传含敏感隐私的信息。\n\n如有疑问请联系：support@example.com'
-  },
-  {
-    id: 'terms',
-    icon: '协',
-    label: '用户协议',
-    content:
-      '用户协议\n\n使用本工具即表示您同意：\n1. 仅处理您本人拥有合法版权或授权的素材\n2. 不将处理结果用于任何侵权行为\n3. 不上传违法、侵权或侵犯隐私的内容\n\n违反上述条款产生的责任由用户自行承担。'
-  },
-  {
-    id: 'version',
-    icon: '版',
-    label: '版本信息',
-    value: `v${APP_VERSION}`
+function getAvatarUrl(user?: LoginResponse | null) {
+  const avatarUrl = user?.avatar_url
+  if (!avatarUrl) {
+    return ''
   }
-]
+  return /^https?:\/\//i.test(avatarUrl) || avatarUrl.startsWith('/')
+    ? toApiUrl(avatarUrl)
+    : avatarUrl
+}
 
 export default function ProfilePage() {
   const [user, setUser] = useState<LoginResponse | null>(() => getStoredUser())
+  const [profile, setProfile] = useState<UserProfileResponse | null>(null)
   const [quota, setQuota] = useState<DailyQuotaResponse | null>(null)
   const [modal, setModal] = useState<{ title: string; body: string } | null>(null)
   const [feedbackVisible, setFeedbackVisible] = useState(false)
@@ -63,30 +47,68 @@ export default function ProfilePage() {
   const [ratingVisible, setRatingVisible] = useState(false)
   const [ratingScore, setRatingScore] = useState(5)
   const [ratingComment, setRatingComment] = useState('')
-  const [rateVisible, setRateVisible] = useState(false)
 
-  const loggedOpenid = user?.openid || getStoredOpenid()
-  const isLoggedIn = Boolean(loggedOpenid)
-  const avatarUrl = user?.avatar_url
-    ? (/^https?:\/\//i.test(user.avatar_url) || user.avatar_url.startsWith('/') ? toApiUrl(user.avatar_url) : user.avatar_url)
-    : ''
+  const isLoggedIn = Boolean(user?.openid || getStoredOpenid())
+  const avatarUrl = getAvatarUrl(user)
+  const latestScore = profile?.latest_rating_score || null
+
+  const menuItems: MenuItem[] = [
+    {
+      id: 'feedback',
+      icon: '反馈',
+      label: '用户反馈'
+    },
+    {
+      id: 'rate',
+      icon: '评分',
+      label: '给我们评分',
+      value: latestScore ? `${latestScore} 分` : undefined
+    },
+    {
+      id: 'privacy',
+      icon: '隐私',
+      label: '隐私协议',
+      content:
+        '隐私协议\n\n本应用仅为处理自有或已授权素材提供工具能力。上传素材仅用于本次处理和临时下载，请勿上传包含敏感隐私的信息。\n\n如有问题，请通过用户反馈提交。'
+    },
+    {
+      id: 'terms',
+      icon: '协议',
+      label: '用户协议',
+      content:
+        '用户协议\n\n使用本工具即表示您同意：\n1. 仅处理本人拥有合法版权或授权的素材\n2. 不将处理结果用于任何侵权行为\n3. 不上传违法、侵权或侵犯隐私的内容\n\n违反上述条款产生的责任由用户自行承担。'
+    },
+    {
+      id: 'version',
+      icon: '版本',
+      label: '版本信息',
+      value: `v${APP_VERSION}`
+    }
+  ]
 
   const refreshProfile = async () => {
+    const openid = getStoredOpenid()
     const storedUser = getStoredUser()
-    if (storedUser) {
-      setUser(storedUser)
-    }
+    setUser(storedUser)
 
-    if (!getStoredOpenid()) {
+    if (!openid) {
+      setProfile(null)
       setQuota(null)
       return
     }
 
     try {
-      const nextQuota = await getDailyQuota()
+      const [nextProfile, nextQuota] = await Promise.all([
+        fetchUserProfile(openid),
+        getDailyQuota()
+      ])
+      setProfile(nextProfile)
       setQuota(nextQuota)
-      setUser(getStoredUser() || storedUser)
+      setUser(nextProfile.user)
+      setRatingScore(nextProfile.latest_rating_score || 5)
+      setRatingComment(nextProfile.latest_rating_comment || '')
     } catch {
+      setProfile(null)
       setQuota(null)
     }
   }
@@ -97,10 +119,10 @@ export default function ProfilePage() {
 
   const handleLogin = async () => {
     try {
-      await requireLoggedIn('登录后可查看微信头像、昵称和今日使用次数。')
+      await requireLoggedIn('登录后可查看微信头像、昵称和使用次数。')
       await refreshProfile()
     } catch {
-      // requireLoggedIn has shown a modal unless the user cancelled.
+      // 登录弹窗已经给出提示。
     }
   }
 
@@ -117,7 +139,7 @@ export default function ProfilePage() {
         await refreshProfile()
         setFeedbackVisible(true)
       } catch {
-        // User cancelled login.
+        // 用户取消登录。
       }
       return
     }
@@ -128,7 +150,7 @@ export default function ProfilePage() {
         await refreshProfile()
         setRatingVisible(true)
       } catch {
-        // User cancelled login.
+        // 用户取消登录。
       }
     }
   }
@@ -144,6 +166,7 @@ export default function ProfilePage() {
       setFeedbackVisible(false)
       setFeedbackContent('')
       setFeedbackContact('')
+      await refreshProfile()
       Taro.showToast({ title: '反馈已提交', icon: 'success' })
     } catch (error) {
       Taro.showToast({
@@ -157,10 +180,8 @@ export default function ProfilePage() {
     try {
       await submitRating(ratingScore, ratingComment)
       setRatingVisible(false)
-      setRatingComment('')
-      setRateVisible(true)
+      await refreshProfile()
       Taro.showToast({ title: '评分已提交', icon: 'success' })
-      setTimeout(() => setRateVisible(false), 2200)
     } catch {
       Taro.showToast({ title: '提交失败，请稍后重试', icon: 'none' })
     }
@@ -183,12 +204,14 @@ export default function ProfilePage() {
         <View className='user-copy'>
           <Text className='user-name'>{user?.nickname || (isLoggedIn ? '微信用户' : '未登录')}</Text>
           <Text className='user-desc'>
-            {isLoggedIn ? '已登录，可查看今日使用次数' : '登录后查看头像、昵称和使用次数'}
+            {isLoggedIn ? '已登录，数据已同步到后端' : '登录后查看头像、昵称和使用次数'}
           </Text>
         </View>
-        <Button className='login-action' hoverClass='login-action-hover' onClick={handleLogin}>
-          {isLoggedIn ? '刷新' : '微信登录'}
-        </Button>
+        {!isLoggedIn ? (
+          <Button className='login-action' hoverClass='login-action-hover' onClick={handleLogin}>
+            微信登录
+          </Button>
+        ) : null}
       </View>
 
       <View className='usage-card'>
@@ -203,8 +226,8 @@ export default function ProfilePage() {
         </View>
         <View className='usage-divider' />
         <View className='usage-item'>
-          <Text className='usage-number'>{quota ? quota.total : '-'}</Text>
-          <Text className='usage-label'>总次数</Text>
+          <Text className='usage-number'>{profile ? profile.usage_total : '-'}</Text>
+          <Text className='usage-label'>使用总次数</Text>
         </View>
       </View>
 
@@ -213,7 +236,7 @@ export default function ProfilePage() {
           <Button
             key={item.id}
             className={`menu-row ${index < menuItems.length - 1 ? 'has-border' : ''}`}
-            hoverClass={item.value ? 'none' : 'menu-row-hover'}
+            hoverClass={item.id === 'version' ? 'none' : 'menu-row-hover'}
             onClick={() => handleMenu(item)}
           >
             <View className={`menu-icon ${item.id === 'rate' ? 'is-orange' : ''}`}>
@@ -228,13 +251,6 @@ export default function ProfilePage() {
           </Button>
         ))}
       </View>
-
-      <View className={`rate-toast ${rateVisible ? 'is-visible' : ''}`}>
-        <Text className='rate-check'>✓</Text>
-        <Text>感谢您的评分，欢迎继续体验。</Text>
-      </View>
-
-      <Text className='profile-footer'>© 2026 图片去水印与 MD5 工具</Text>
 
       {modal ? (
         <View className='policy-mask' onClick={() => setModal(null)}>
@@ -285,7 +301,7 @@ export default function ProfilePage() {
           <View className='rating-panel'>
             <View className='sheet-handle' />
             <Text className='policy-title'>给我们评分</Text>
-            <Text className='rating-desc'>请选择 1-5 星，帮助我们改进体验。</Text>
+            <Text className='rating-desc'>请选择 1-5 分，提交后会记录到当前微信用户。</Text>
             <View className='star-row'>
               {[1, 2, 3, 4, 5].map((score) => (
                 <Button
@@ -298,7 +314,7 @@ export default function ProfilePage() {
                 </Button>
               ))}
             </View>
-            <Text className='score-copy'>{ratingScore} 星</Text>
+            <Text className='score-copy'>{ratingScore} 分</Text>
             <Textarea
               className='form-textarea compact'
               placeholder='评价内容（选填）'

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import Taro from '@tarojs/taro'
-import { Button, Image, Picker, Text, View } from '@tarojs/components'
+import Taro, { useDidShow } from '@tarojs/taro'
+import { Button, Image, Text, View } from '@tarojs/components'
 import AdCard from '@/components/AdCard'
 import BottomNav from '@/components/BottomNav'
 import DisclaimerModal from '@/components/DisclaimerModal'
@@ -8,7 +8,7 @@ import QuotaBadge from '@/components/QuotaBadge'
 import RewardedAdDialog from '@/components/RewardedAdDialog'
 import WeChatLoginDialog from '@/components/WeChatLoginDialog'
 import { FREE_QUOTA_PER_DAY } from '@/data/constants'
-import { requireLoggedIn } from '@/services/auth'
+import { getStoredOpenid, requireLoggedIn } from '@/services/auth'
 import { toApiUrl, uploadCleanupJob, waitForMediaJob } from '@/services/mediaJobs'
 import { getDailyQuota, grantDailyQuota } from '@/services/quota'
 import type { CleanupMethod, EditorMode, PickedMedia, WatermarkRegion } from '@/types/media'
@@ -32,66 +32,142 @@ interface DraftRect {
   height: number
 }
 
-const MODEL_OPTIONS = ['模型1(通用稳定) 快', '模型2(线条结构) 中', '模型3(精细修复) 慢']
-const BRUSH_SIZES = [12, 24, 38]
+interface PreviewBox {
+  left: number
+  top: number
+  width: number
+  height: number
+}
+
+interface MediaFrame {
+  left: number
+  top: number
+  width: number
+  height: number
+  absoluteLeft: number
+  absoluteTop: number
+}
+
+const BRUSH_SIZES = [14, 28, 44]
 const UNSUPPORTED_IMAGE_EXTENSIONS = ['.webp']
+const DEFAULT_METHOD: CleanupMethod = 'inpaint'
+const MAX_BRUSH_REGIONS = 260
 
 function clamp(value: number) {
   return Math.max(0, Math.min(1, value))
 }
 
-function normalizeRect(rect: DraftRect): DraftRect {
-  const x = rect.width < 0 ? rect.x + rect.width : rect.x
-  const y = rect.height < 0 ? rect.y + rect.height : rect.y
-  return {
-    x: clamp(x),
-    y: clamp(y),
-    width: Math.min(1 - clamp(x), Math.abs(rect.width)),
-    height: Math.min(1 - clamp(y), Math.abs(rect.height))
+function rpxToPx(value: number) {
+  try {
+    return (value / 750) * Taro.getSystemInfoSync().windowWidth
+  } catch {
+    return value / 2
   }
 }
 
-function regionFromRect(rect: DraftRect, media: PickedMedia, blurRadius: number): WatermarkRegion {
+function normalizeRect(rect: DraftRect): DraftRect {
+  const rawX = rect.width < 0 ? rect.x + rect.width : rect.x
+  const rawY = rect.height < 0 ? rect.y + rect.height : rect.y
+  const x = clamp(rawX)
+  const y = clamp(rawY)
+  return {
+    x,
+    y,
+    width: Math.min(1 - x, Math.abs(rect.width)),
+    height: Math.min(1 - y, Math.abs(rect.height))
+  }
+}
+
+function rectToRegion(rect: DraftRect, media: PickedMedia, blurRadius: number): WatermarkRegion {
   const normalized = normalizeRect(rect)
   const width = media.width || 1080
   const height = media.height || 1080
   return {
     x: Math.max(0, Math.round(normalized.x * width)),
     y: Math.max(0, Math.round(normalized.y * height)),
-    width: Math.max(8, Math.round(normalized.width * width)),
-    height: Math.max(8, Math.round(normalized.height * height)),
+    width: Math.max(4, Math.round(normalized.width * width)),
+    height: Math.max(4, Math.round(normalized.height * height)),
     blur_radius: blurRadius
   }
 }
 
-function regionFromPoints(points: Point[], media: PickedMedia, brushSize: number): WatermarkRegion | null {
-  if (points.length === 0) {
-    return null
+function getFrame(previewBox: PreviewBox, media: PickedMedia | null): MediaFrame {
+  if (!media || previewBox.width <= 1 || previewBox.height <= 1) {
+    return {
+      left: 0,
+      top: 0,
+      width: Math.max(1, previewBox.width),
+      height: Math.max(1, previewBox.height),
+      absoluteLeft: previewBox.left,
+      absoluteTop: previewBox.top
+    }
   }
 
-  const xs = points.map((point) => point.x)
-  const ys = points.map((point) => point.y)
-  const padding = brushSize / 750
-  const left = clamp(Math.min(...xs) - padding)
-  const top = clamp(Math.min(...ys) - padding)
-  const right = clamp(Math.max(...xs) + padding)
-  const bottom = clamp(Math.max(...ys) + padding)
+  const mediaWidth = media.width || previewBox.width
+  const mediaHeight = media.height || previewBox.height
+  const scale = Math.min(previewBox.width / mediaWidth, previewBox.height / mediaHeight)
+  const width = Math.max(1, mediaWidth * scale)
+  const height = Math.max(1, mediaHeight * scale)
+  const left = (previewBox.width - width) / 2
+  const top = (previewBox.height - height) / 2
 
-  return regionFromRect(
-    {
-      x: left,
-      y: top,
-      width: Math.max(0.02, right - left),
-      height: Math.max(0.02, bottom - top)
-    },
-    media,
-    Math.max(12, brushSize)
-  )
+  return {
+    left,
+    top,
+    width,
+    height,
+    absoluteLeft: previewBox.left + left,
+    absoluteTop: previewBox.top + top
+  }
+}
+
+function distance(a: Point, b: Point) {
+  const dx = a.x - b.x
+  const dy = a.y - b.y
+  return Math.sqrt(dx * dx + dy * dy)
 }
 
 function isUnsupportedImage(path: string) {
   const normalized = path.toLowerCase().split('?')[0]
   return UNSUPPORTED_IMAGE_EXTENSIONS.some((extension) => normalized.endsWith(extension))
+}
+
+function buildBrushRegions(
+  strokes: Point[][],
+  media: PickedMedia,
+  frame: MediaFrame,
+  brushSize: number
+): WatermarkRegion[] {
+  const brushPx = rpxToPx(brushSize)
+  const radiusX = Math.max(0.004, brushPx / 2 / frame.width)
+  const radiusY = Math.max(0.004, brushPx / 2 / frame.height)
+  const minSpacing = Math.max(radiusX, radiusY) * 0.55
+  const sampled: Point[] = []
+
+  strokes.forEach((stroke) => {
+    stroke.forEach((point) => {
+      const last = sampled[sampled.length - 1]
+      if (!last || distance(last, point) >= minSpacing) {
+        sampled.push(point)
+      }
+    })
+  })
+
+  const step = sampled.length > MAX_BRUSH_REGIONS ? Math.ceil(sampled.length / MAX_BRUSH_REGIONS) : 1
+  return sampled
+    .filter((_, index) => index % step === 0)
+    .map((point) =>
+      rectToRegion(
+        {
+          x: point.x - radiusX,
+          y: point.y - radiusY,
+          width: radiusX * 2,
+          height: radiusY * 2
+        },
+        media,
+        Math.max(12, brushSize)
+      )
+    )
 }
 
 export default function IndexPage() {
@@ -102,19 +178,26 @@ export default function IndexPage() {
   const [step, setStep] = useState<'pick' | 'edit' | 'processing'>('pick')
   const [selectedFile, setSelectedFile] = useState<PickedMedia | null>(null)
   const [mode, setMode] = useState<EditorMode>('brush')
-  const [modelIndex, setModelIndex] = useState(1)
   const [brushIndex, setBrushIndex] = useState(1)
-  const [points, setPoints] = useState<Point[]>([])
+  const [strokes, setStrokes] = useState<Point[][]>([])
   const [draftRect, setDraftRect] = useState<DraftRect | null>(null)
   const [dragStart, setDragStart] = useState<Point | null>(null)
-  const [previewBox, setPreviewBox] = useState({ left: 0, top: 0, width: 1, height: 1 })
+  const [previewBox, setPreviewBox] = useState<PreviewBox>({ left: 0, top: 0, width: 1, height: 1 })
   const [processing, setProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [statusLabel, setStatusLabel] = useState('')
 
+  const mediaFrame = getFrame(previewBox, selectedFile)
+
   useEffect(() => {
     setDisclaimerVisible(!hasAgreedDisclaimer())
   }, [])
+
+  useDidShow(() => {
+    if (getStoredOpenid()) {
+      refreshQuota().catch(() => undefined)
+    }
+  })
 
   const refreshQuota = async () => {
     const quota = await getDailyQuota()
@@ -152,55 +235,55 @@ export default function IndexPage() {
 
     try {
       await loginAndRefreshQuota()
-      const result = await Taro.chooseMedia({
+      const result = await Taro.chooseImage({
         count: 1,
-        mediaType: ['image'],
         sourceType: ['album', 'camera'],
-        camera: 'back'
+        sizeType: ['original', 'compressed']
       })
-      const file = result.tempFiles?.[0] as any
-      if (!file?.tempFilePath) {
+      const filePath = result.tempFilePaths?.[0]
+      if (!filePath) {
         return
       }
 
-      if (isUnsupportedImage(file.tempFilePath)) {
+      if (isUnsupportedImage(filePath)) {
         Taro.showToast({ title: '暂不支持 WebP 图片', icon: 'none' })
         return
       }
 
-      const type = 'image'
-      let width = Number(file.width) || undefined
-      let height = Number(file.height) || undefined
+      let width = 1080
+      let height = 1080
+      let size = Number((result.tempFiles?.[0] as any)?.size) || 0
 
       try {
-        const imageInfo = await Taro.getImageInfo({ src: file.tempFilePath })
+        const imageInfo = await Taro.getImageInfo({ src: filePath })
         if (String(imageInfo.type || '').toLowerCase() === 'webp') {
           Taro.showToast({ title: '暂不支持 WebP 图片', icon: 'none' })
           return
         }
         width = imageInfo.width
         height = imageInfo.height
+        size = size || Number((imageInfo as any).size) || 0
       } catch {
-        width = width || 1080
-        height = height || 1080
+        // 旧机型可能拿不到尺寸，保留默认值。
       }
 
       setSelectedFile({
-        path: file.tempFilePath,
-        type,
-        size: Number(file.size) || 0,
-        originalName: getFileName(file.tempFilePath),
-        duration: Number(file.duration) || undefined,
+        path: filePath,
+        type: 'image',
+        size,
+        originalName: getFileName(filePath),
         width,
         height
       })
-      setPoints([])
+      setMode('brush')
+      setStrokes([])
       setDraftRect(null)
+      setDragStart(null)
       setStep('edit')
       setTimeout(syncPreviewBox, 180)
     } catch (error) {
       const message = error instanceof Error ? error.message : ''
-      if (!message.includes('cancel') && !message.includes('登录')) {
+      if (!message.includes('cancel') && !message.includes('取消') && !message.includes('登录')) {
         Taro.showToast({ title: '选择失败', icon: 'none' })
       }
     }
@@ -208,13 +291,14 @@ export default function IndexPage() {
 
   const getTouchPoint = (event: any): Point | null => {
     const touch = event.touches?.[0] || event.changedTouches?.[0]
-    if (!touch) {
+    if (!touch || !selectedFile) {
       return null
     }
 
+    const frame = getFrame(previewBox, selectedFile)
     return {
-      x: clamp((Number(touch.clientX) - previewBox.left) / previewBox.width),
-      y: clamp((Number(touch.clientY) - previewBox.top) / previewBox.height)
+      x: clamp((Number(touch.clientX) - frame.absoluteLeft) / frame.width),
+      y: clamp((Number(touch.clientY) - frame.absoluteTop) / frame.height)
     }
   }
 
@@ -223,6 +307,8 @@ export default function IndexPage() {
       return
     }
 
+    event.stopPropagation?.()
+    event.preventDefault?.()
     syncPreviewBox()
     const point = getTouchPoint(event)
     if (!point) {
@@ -230,7 +316,7 @@ export default function IndexPage() {
     }
 
     if (mode === 'brush') {
-      setPoints((current) => [...current, point])
+      setStrokes((current) => [...current, [point]])
       return
     }
 
@@ -243,13 +329,27 @@ export default function IndexPage() {
       return
     }
 
+    event.stopPropagation?.()
+    event.preventDefault?.()
     const point = getTouchPoint(event)
     if (!point) {
       return
     }
 
     if (mode === 'brush') {
-      setPoints((current) => [...current.slice(-90), point])
+      setStrokes((current) => {
+        if (current.length === 0) {
+          return [[point]]
+        }
+        const next = current.slice()
+        const lastStroke = next[next.length - 1]
+        const lastPoint = lastStroke[lastStroke.length - 1]
+        if (lastPoint && distance(lastPoint, point) < 0.0025) {
+          return current
+        }
+        next[next.length - 1] = [...lastStroke, point]
+        return next
+      })
       return
     }
 
@@ -263,12 +363,14 @@ export default function IndexPage() {
     }
   }
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (event) => {
+    event?.stopPropagation?.()
+    event?.preventDefault?.()
     setDragStart(null)
   }
 
   const clearMarks = () => {
-    setPoints([])
+    setStrokes([])
     setDraftRect(null)
     setDragStart(null)
   }
@@ -276,23 +378,23 @@ export default function IndexPage() {
   const centerRect = () => {
     setMode('rect')
     setDraftRect({ x: 0.18, y: 0.08, width: 0.46, height: 0.16 })
-    setPoints([])
+    setStrokes([])
   }
 
-  const currentRegion = () => {
+  const currentRegions = () => {
     if (!selectedFile) {
-      return null
+      return []
     }
 
     if (mode === 'rect' && draftRect) {
       const normalized = normalizeRect(draftRect)
-      if (normalized.width < 0.02 || normalized.height < 0.02) {
-        return null
+      if (normalized.width < 0.01 || normalized.height < 0.01) {
+        return []
       }
-      return regionFromRect(normalized, selectedFile, BRUSH_SIZES[brushIndex])
+      return [rectToRegion(normalized, selectedFile, BRUSH_SIZES[brushIndex])]
     }
 
-    return regionFromPoints(points, selectedFile, BRUSH_SIZES[brushIndex])
+    return buildBrushRegions(strokes, selectedFile, mediaFrame, BRUSH_SIZES[brushIndex])
   }
 
   const startProcessing = async () => {
@@ -300,17 +402,15 @@ export default function IndexPage() {
       return
     }
 
-    const region = currentRegion()
-    if (!region) {
+    const regions = currentRegions()
+    if (regions.length === 0) {
       Taro.showToast({ title: '请先标记水印区域', icon: 'none' })
       return
     }
 
-    let remaining = 0
     try {
       const quota = await loginAndRefreshQuota()
-      remaining = quota.remaining
-      if (remaining <= 0) {
+      if (quota.remaining <= 0) {
         setRewardVisible(true)
         return
       }
@@ -324,11 +424,10 @@ export default function IndexPage() {
     setStatusLabel('上传素材中...')
 
     try {
-      const method: CleanupMethod = modelIndex === 2 ? 'inpaint' : 'blur'
       const job = await uploadCleanupJob({
         filePath: selectedFile.path,
-        method,
-        regions: [region]
+        method: DEFAULT_METHOD,
+        regions
       })
       setProgress(28)
       setStatusLabel('任务已提交...')
@@ -348,7 +447,8 @@ export default function IndexPage() {
         thumb: selectedFile.path,
         processedUrl: toApiUrl(finishedJob.result_url),
         processTime: formatDateTime(),
-        fileSize: formatFileSize(selectedFile.size)
+        fileSize: formatFileSize(selectedFile.size),
+        resultMd5: finishedJob.result_md5 || undefined
       })
       setProcessing(false)
       setProgress(0)
@@ -374,7 +474,7 @@ export default function IndexPage() {
         setUsedToday(quota.used)
         setTotalQuota(quota.total)
         setRewardVisible(false)
-        Taro.showToast({ title: '已获得 1 次机会', icon: 'success' })
+        Taro.showToast({ title: '已增加 1 次', icon: 'success' })
       })
       .catch(() => {
         setRewardVisible(false)
@@ -387,11 +487,56 @@ export default function IndexPage() {
       if (quota.remaining <= 0) {
         setRewardVisible(true)
       } else {
-        Taro.showToast({ title: '登录成功，可继续使用', icon: 'success' })
+        Taro.showToast({ title: '可继续使用', icon: 'success' })
       }
     } catch {
-      // requireLoggedIn has shown a modal.
+      // 登录弹窗已经给出提示。
     }
+  }
+
+  const renderBrushMarks = () => {
+    const brushSize = BRUSH_SIZES[brushIndex]
+    const brushPx = rpxToPx(brushSize)
+    return strokes.map((stroke, strokeIndex) => (
+      <View key={`stroke-${strokeIndex}`}>
+        {stroke.map((point, index) => {
+          if (index === 0) {
+            return (
+              <View
+                key={`dot-${strokeIndex}-${index}`}
+                className='brush-dot'
+                style={{
+                  left: `${point.x * 100}%`,
+                  top: `${point.y * 100}%`,
+                  width: `${brushSize}rpx`,
+                  height: `${brushSize}rpx`
+                }}
+              />
+            )
+          }
+
+          const previous = stroke[index - 1]
+          const dx = (point.x - previous.x) * mediaFrame.width
+          const dy = (point.y - previous.y) * mediaFrame.height
+          const length = Math.max(brushPx, Math.sqrt(dx * dx + dy * dy) + brushPx)
+          const angle = Math.atan2(dy, dx) * 180 / Math.PI
+
+          return (
+            <View
+              key={`seg-${strokeIndex}-${index}`}
+              className='brush-segment'
+              style={{
+                left: `${previous.x * 100}%`,
+                top: `${previous.y * 100}%`,
+                width: `${length}px`,
+                height: `${brushSize}rpx`,
+                transform: `translateY(-50%) rotate(${angle}deg)`
+              }}
+            />
+          )
+        })}
+      </View>
+    ))
   }
 
   const renderPreview = () => {
@@ -404,49 +549,48 @@ export default function IndexPage() {
     return (
       <View
         className='editor-preview-box'
+        catchMove
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
       >
         <Image className='editor-media' src={selectedFile.path} mode='aspectFit' />
+        <View
+          className='editor-overlay'
+          style={{
+            left: `${mediaFrame.left}px`,
+            top: `${mediaFrame.top}px`,
+            width: `${mediaFrame.width}px`,
+            height: `${mediaFrame.height}px`
+          }}
+        >
+          {renderBrushMarks()}
 
-        {points.map((point, index) => (
-          <View
-            key={`${point.x}-${point.y}-${index}`}
-            className='brush-dot'
-            style={{
-              left: `${point.x * 100}%`,
-              top: `${point.y * 100}%`,
-              width: `${BRUSH_SIZES[brushIndex]}rpx`,
-              height: `${BRUSH_SIZES[brushIndex]}rpx`
-            }}
-          />
-        ))}
-
-        {normalized ? (
-          <View
-            className='selection-box'
-            style={{
-              left: `${normalized.x * 100}%`,
-              top: `${normalized.y * 100}%`,
-              width: `${normalized.width * 100}%`,
-              height: `${normalized.height * 100}%`
-            }}
-          >
-            <View className='selection-handle top-left' />
-            <View className='selection-handle top-right' />
-            <View className='selection-handle bottom-left' />
-            <View className='selection-handle bottom-right' />
-          </View>
-        ) : null}
+          {normalized ? (
+            <View
+              className='selection-box'
+              style={{
+                left: `${normalized.x * 100}%`,
+                top: `${normalized.y * 100}%`,
+                width: `${normalized.width * 100}%`,
+                height: `${normalized.height * 100}%`
+              }}
+            >
+              <View className='selection-handle top-left' />
+              <View className='selection-handle top-right' />
+              <View className='selection-handle bottom-left' />
+              <View className='selection-handle bottom-right' />
+            </View>
+          ) : null}
+        </View>
       </View>
     )
   }
 
   if (step === 'edit' || step === 'processing') {
     return (
-      <View className='editor-page fade-in'>
+      <View className='editor-page fade-in' catchMove>
         <View className='editor-topbar'>
           <Button
             className='editor-back'
@@ -462,9 +606,8 @@ export default function IndexPage() {
           >
             ‹
           </Button>
-          <View className='review-pill'>
-            <Text>审核通过</Text>
-          </View>
+          <Text className='editor-title'>标记水印区域</Text>
+          <View className='editor-top-placeholder' />
         </View>
 
         {step === 'processing' ? (
@@ -485,7 +628,7 @@ export default function IndexPage() {
         <View className='editor-control-wrap'>
           <Text className='editor-hint'>
             {mode === 'brush'
-              ? '用手指涂抹水印区域，涂抹完成后点击开始处理'
+              ? '用手指连续涂抹水印区域，涂抹完成后点击开始处理'
               : '拖动框选水印位置，完成后点击开始处理'}
           </Text>
           <View className='control-panel'>
@@ -506,26 +649,14 @@ export default function IndexPage() {
                 hoverClass='mode-button-hover'
                 onClick={() => {
                   setMode('rect')
-                  setPoints([])
+                  setStrokes([])
                   if (!draftRect) {
                     centerRect()
                   }
                 }}
               >
-                四边形框选
+                框选
               </Button>
-              <Text className='control-label model-label'>模型:</Text>
-              <Picker
-                mode='selector'
-                range={MODEL_OPTIONS}
-                value={modelIndex}
-                onChange={(event) => setModelIndex(Number(event.detail.value))}
-              >
-                <View className='model-picker'>
-                  <Text>{MODEL_OPTIONS[modelIndex]}</Text>
-                  <Text className='picker-arrow'>▼</Text>
-                </View>
-              </Picker>
             </View>
 
             <View className='control-row second-row'>
@@ -607,14 +738,13 @@ export default function IndexPage() {
       <View className='upload-entry-card'>
         <Button className='upload-entry' hoverClass='upload-entry-hover' onClick={pickMedia}>
           <View className='upload-entry-icon'>
-            <Text>＋</Text>
+            <Text>+</Text>
           </View>
           <Text className='upload-entry-title'>选择图片</Text>
           <Text className='upload-entry-desc'>支持画笔涂抹、四边形框选，后端返回处理成品</Text>
           <View className='format-list'>
             <Text>JPG</Text>
             <Text>PNG</Text>
-            <Text>HEIC</Text>
           </View>
         </Button>
       </View>
@@ -639,7 +769,7 @@ export default function IndexPage() {
       </View>
 
       <View className='compliance-note'>
-        <Text>仅可处理自有或已授权素材，系统不会解析第三方平台无授权链接。</Text>
+        <Text>仅可处理自有或已授权素材，系统不会解析第三方平台未授权链接。</Text>
       </View>
 
       <BottomNav current='home' />

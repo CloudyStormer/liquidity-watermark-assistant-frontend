@@ -1,5 +1,6 @@
 import Taro from '@tarojs/taro'
 import { API_BASE_URL, WEAPP_LOGIN_PATH } from '@/config/api'
+import type { UserProfileResponse } from '@/types/media'
 import { requestWeChatProfile } from './loginBridge'
 import { requestJson } from './request'
 
@@ -22,10 +23,6 @@ interface WeChatProfile {
   nickname?: string
   avatar_path?: string
   avatar_url?: string
-}
-
-interface UserProfileResponse {
-  user: LoginResponse
 }
 
 function hashCode(input: string) {
@@ -108,9 +105,17 @@ async function createDevUser(openid: string, profile?: WeChatProfile) {
   return user.openid
 }
 
-async function validateStoredUser(openid: string) {
+export async function fetchUserProfile(openid = getStoredOpenid()) {
+  if (!openid) {
+    throw new Error('请先登录')
+  }
   const profile = await requestJson<UserProfileResponse>(`/users/${encodeURIComponent(openid)}/profile`)
   storeUser(profile.user)
+  return profile
+}
+
+async function validateStoredUser(openid: string) {
+  const profile = await fetchUserProfile(openid)
   return profile.user
 }
 

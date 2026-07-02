@@ -1,4 +1,4 @@
 export default definePageConfig({
-  navigationBarTitleText: '一键去水印',
+  navigationBarTitleText: '图片去水印',
   navigationStyle: 'custom'
 })

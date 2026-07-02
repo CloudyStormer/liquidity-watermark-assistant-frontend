@@ -65,3 +65,34 @@ export interface DailyQuotaResponse {
   used: number
   remaining: number
 }
+
+export interface UserResponse {
+  openid: string
+  nickname?: string
+  avatar_url?: string
+  created_at?: string
+  updated_at?: string
+  last_login_at?: string
+}
+
+export interface UserProfileResponse {
+  user: UserResponse
+  usage_total: number
+  total_jobs: number
+  succeeded_jobs: number
+  failed_jobs: number
+  ratings_count: number
+  feedback_count: number
+  latest_rating_score?: number | null
+  latest_rating_comment?: string | null
+  latest_rating_at?: string | null
+}
+
+export interface RatingResponse {
+  id: string
+  openid: string
+  score: number
+  comment?: string | null
+  job_id?: string | null
+  created_at: string
+}

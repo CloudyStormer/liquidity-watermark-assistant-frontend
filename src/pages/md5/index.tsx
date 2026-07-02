@@ -3,8 +3,10 @@ import Taro from '@tarojs/taro'
 import { Button, Text, Video, View } from '@tarojs/components'
 import AdCard from '@/components/AdCard'
 import BottomNav from '@/components/BottomNav'
+import RewardedAdDialog from '@/components/RewardedAdDialog'
 import WeChatLoginDialog from '@/components/WeChatLoginDialog'
 import { requireLoggedIn } from '@/services/auth'
+import { grantDailyQuota } from '@/services/quota'
 import { downloadToTempFile, toApiUrl, uploadMd5Variant } from '@/services/mediaJobs'
 import type { Md5FileResponse, PickedMedia } from '@/types/media'
 import { formatFileSize, getFileName } from '@/utils/media'
@@ -15,6 +17,7 @@ export default function Md5Page() {
   const [computing, setComputing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [result, setResult] = useState<Md5FileResponse | null>(null)
+  const [rewardVisible, setRewardVisible] = useState(false)
   const resultVideoUrl = result ? toApiUrl(result.result_url) : ''
 
   const chooseVideo = async () => {
@@ -24,30 +27,29 @@ export default function Md5Page() {
 
     try {
       await requireLoggedIn('登录后才能上传视频并生成新的 MD5 文件。')
-      const picked = await Taro.chooseMedia({
-        count: 1,
-        mediaType: ['video'],
+      const picked = await Taro.chooseVideo({
         sourceType: ['album', 'camera'],
         maxDuration: 300,
         camera: 'back'
       })
-      const file = picked.tempFiles?.[0] as any
-      if (!file?.tempFilePath) {
+      if (!picked.tempFilePath) {
         return
       }
 
       const nextFile: PickedMedia = {
-        path: file.tempFilePath,
+        path: picked.tempFilePath,
         type: 'video',
-        size: Number(file.size) || 0,
-        originalName: getFileName(file.tempFilePath),
-        duration: Number(file.duration) || undefined
+        size: Number(picked.size) || 0,
+        originalName: getFileName(picked.tempFilePath),
+        duration: Number(picked.duration) || undefined,
+        width: Number(picked.width) || undefined,
+        height: Number(picked.height) || undefined
       }
       setSelectedFile(nextFile)
       await startMd5(nextFile)
     } catch (error) {
       const message = error instanceof Error ? error.message : ''
-      if (!message.includes('cancel') && !message.includes('登录')) {
+      if (!message.includes('cancel') && !message.includes('取消') && !message.includes('登录')) {
         Taro.showToast({ title: '选择失败', icon: 'none' })
       }
     }
@@ -57,23 +59,31 @@ export default function Md5Page() {
     setComputing(true)
     setProgress(18)
     setResult(null)
+    let timer: ReturnType<typeof setInterval> | null = null
 
     try {
-      const timer = setInterval(() => {
+      timer = setInterval(() => {
         setProgress((current) => Math.min(92, current + 11))
       }, 650)
       const response = await uploadMd5Variant(file.path)
-      clearInterval(timer)
       setProgress(100)
       setResult(response)
       Taro.showToast({ title: 'MD5 已修改', icon: 'success' })
     } catch (error) {
-      Taro.showModal({
-        title: '处理失败',
-        content: error instanceof Error ? error.message : '请稍后重试',
-        showCancel: false
-      })
+      const message = error instanceof Error ? error.message : '请稍后重试'
+      if (message.includes('429') || message.includes('次数')) {
+        setRewardVisible(true)
+      } else {
+        Taro.showModal({
+          title: '处理失败',
+          content: message,
+          showCancel: false
+        })
+      }
     } finally {
+      if (timer) {
+        clearInterval(timer)
+      }
       setComputing(false)
       setTimeout(() => setProgress(0), 800)
     }
@@ -106,13 +116,17 @@ export default function Md5Page() {
     }
   }
 
-  const showFeatureInfo = () => {
-    Taro.showModal({
-      title: 'MD5 修改说明',
-      content: '系统会在后端为视频写入唯一 metadata，并生成一个新的副本。画面内容不变，但文件二进制和 MD5 会变成新的唯一值。',
-      showCancel: false,
-      confirmText: '知道了'
-    })
+  const handleWatchForQuota = async () => {
+    try {
+      await grantDailyQuota(1)
+      setRewardVisible(false)
+      Taro.showToast({ title: '已增加 1 次', icon: 'success' })
+      if (selectedFile) {
+        await startMd5(selectedFile)
+      }
+    } catch {
+      setRewardVisible(false)
+    }
   }
 
   return (
@@ -122,17 +136,14 @@ export default function Md5Page() {
       </View>
 
       <View className='md5-ad-row'>
-        <View className='md5-ad-left'>
-          <AdCard />
-        </View>
-        <View className='md5-ad-copy'>
-          <View className='ad-avatar' />
-          <Text className='ad-title'>视频文件唯一值工具</Text>
-          <Text className='ad-subtitle'>写入唯一 metadata，生成新的本地副本</Text>
-          <Button className='ad-action' hoverClass='ad-action-hover' onClick={showFeatureInfo}>
-            了解功能
-          </Button>
-        </View>
+        <AdCard />
+      </View>
+
+      <View className='md5-info-card'>
+        <Text className='md5-info-title'>MD5 作用说明</Text>
+        <Text className='md5-info-body'>
+          后端会给视频写入唯一 metadata，并生成一个新副本。画面内容不变，但文件二进制和 MD5 会变成新的唯一值。
+        </Text>
       </View>
 
       <View className='md5-upload-card'>
@@ -195,8 +206,14 @@ export default function Md5Page() {
         </View>
       ) : null}
 
-      <Text className='md5-note'>注：文件会上传到后端生成新副本，处理完成后可下载保存。</Text>
+      <Text className='md5-note'>文件上传后由后端生成新副本，处理完成即可在线播放和下载保存。</Text>
       <BottomNav current='md5' />
+      <RewardedAdDialog
+        visible={rewardVisible}
+        reason='quota'
+        onWatch={handleWatchForQuota}
+        onClose={() => setRewardVisible(false)}
+      />
       <WeChatLoginDialog />
     </View>
   )
