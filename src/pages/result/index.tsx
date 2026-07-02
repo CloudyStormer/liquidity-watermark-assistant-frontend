@@ -5,6 +5,7 @@ import AdCard from '@/components/AdCard'
 import BottomNav from '@/components/BottomNav'
 import RewardedAdDialog from '@/components/RewardedAdDialog'
 import { MOCK_RESULT } from '@/data/constants'
+import { requireLoggedIn } from '@/services/auth'
 import { downloadToTempFile } from '@/services/mediaJobs'
 import type { ProcessedFile } from '@/types/media'
 import { getLatestResult } from '@/utils/storage'
@@ -25,6 +26,7 @@ export default function ResultPage() {
     setRewardVisible(false)
 
     try {
+      await requireLoggedIn('登录后才能下载保存处理结果。')
       const localPath = /^https?:\/\//i.test(fileData.processedUrl)
         ? await downloadToTempFile(fileData.processedUrl)
         : fileData.processedUrl

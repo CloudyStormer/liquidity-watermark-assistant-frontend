@@ -13,8 +13,8 @@ interface RewardedAdDialogProps {
 const copyMap: Record<RewardReason, { title: string; desc: string; reward: string }> = {
   quota: {
     title: '今日次数已用完',
-    desc: '观看一个短视频广告，立即获得 3 次额外处理次数。',
-    reward: '+3 次处理机会'
+    desc: '每观看一个短视频广告，立即获得 1 次额外处理机会。',
+    reward: '+1 次处理机会'
   },
   download: {
     title: '免费下载',

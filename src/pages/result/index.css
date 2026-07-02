@@ -1,5 +1,5 @@
 .result-header {
-  padding: 96rpx 32rpx 28rpx;
+  padding: calc(72rpx + env(safe-area-inset-top)) 32rpx 28rpx;
   display: flex;
   align-items: center;
 }

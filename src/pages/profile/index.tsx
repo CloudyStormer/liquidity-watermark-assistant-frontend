@@ -1,8 +1,11 @@
 import { useState } from 'react'
-import Taro from '@tarojs/taro'
-import { Button, Input, Text, Textarea, View } from '@tarojs/components'
+import Taro, { useDidShow } from '@tarojs/taro'
+import { Button, Image, Input, Text, Textarea, View } from '@tarojs/components'
 import BottomNav from '@/components/BottomNav'
+import { getStoredOpenid, getStoredUser, requireLoggedIn, type LoginResponse } from '@/services/auth'
+import { getDailyQuota } from '@/services/quota'
 import { submitFeedback, submitRating } from '@/services/userActions'
+import type { DailyQuotaResponse } from '@/types/media'
 import './index.css'
 
 interface MenuItem {
@@ -17,20 +20,6 @@ const APP_VERSION = '1.0.0'
 
 const menuItems: MenuItem[] = [
   {
-    id: 'privacy',
-    icon: '隐',
-    label: '隐私协议',
-    content:
-      '隐私协议\n\n本应用承诺不收集、不存储用户上传的任何图片或视频文件。所有处理均在本地完成或仅作临时传输，处理完毕后立即删除。我们不会将您的个人信息出售或共享给第三方。\n\n如有疑问请联系：support@example.com'
-  },
-  {
-    id: 'terms',
-    icon: '协',
-    label: '用户协议',
-    content:
-      '用户协议\n\n使用本工具即表示您同意：\n1. 仅处理您本人拥有合法版权的素材\n2. 不将处理结果用于任何侵权行为\n3. 不用于商业用途或大批量处理\n\n违反上述条款，产生的一切法律责任由用户自行承担。'
-  },
-  {
     id: 'feedback',
     icon: '馈',
     label: '用户反馈'
@@ -41,6 +30,20 @@ const menuItems: MenuItem[] = [
     label: '给我们评分'
   },
   {
+    id: 'privacy',
+    icon: '隐',
+    label: '隐私协议',
+    content:
+      '隐私协议\n\n本应用仅为处理自有或已授权素材提供工具能力。上传素材仅用于本次处理和临时下载，建议您不要上传含敏感隐私的信息。\n\n如有疑问请联系：support@example.com'
+  },
+  {
+    id: 'terms',
+    icon: '协',
+    label: '用户协议',
+    content:
+      '用户协议\n\n使用本工具即表示您同意：\n1. 仅处理您本人拥有合法版权或授权的素材\n2. 不将处理结果用于任何侵权行为\n3. 不上传违法、侵权或侵犯隐私的内容\n\n违反上述条款产生的责任由用户自行承担。'
+  },
+  {
     id: 'version',
     icon: '版',
     label: '版本信息',
@@ -48,7 +51,21 @@ const menuItems: MenuItem[] = [
   }
 ]
 
+function maskOpenid(openid: string) {
+  if (!openid) {
+    return ''
+  }
+
+  if (openid.length <= 10) {
+    return openid
+  }
+
+  return `${openid.slice(0, 6)}...${openid.slice(-4)}`
+}
+
 export default function ProfilePage() {
+  const [user, setUser] = useState<LoginResponse | null>(() => getStoredUser())
+  const [quota, setQuota] = useState<DailyQuotaResponse | null>(null)
   const [modal, setModal] = useState<{ title: string; body: string } | null>(null)
   const [feedbackVisible, setFeedbackVisible] = useState(false)
   const [feedbackContent, setFeedbackContent] = useState('')
@@ -58,7 +75,43 @@ export default function ProfilePage() {
   const [ratingComment, setRatingComment] = useState('')
   const [rateVisible, setRateVisible] = useState(false)
 
-  const handleMenu = (item: MenuItem) => {
+  const loggedOpenid = user?.openid || getStoredOpenid()
+  const isLoggedIn = Boolean(loggedOpenid)
+
+  const refreshProfile = async () => {
+    const storedUser = getStoredUser()
+    if (storedUser) {
+      setUser(storedUser)
+    }
+
+    if (!getStoredOpenid()) {
+      setQuota(null)
+      return
+    }
+
+    try {
+      const nextQuota = await getDailyQuota()
+      setQuota(nextQuota)
+      setUser(getStoredUser() || storedUser)
+    } catch {
+      setQuota(null)
+    }
+  }
+
+  useDidShow(() => {
+    refreshProfile()
+  })
+
+  const handleLogin = async () => {
+    try {
+      await requireLoggedIn('登录后可查看微信头像、昵称和今日使用次数。')
+      await refreshProfile()
+    } catch {
+      // requireLoggedIn has shown a modal unless the user cancelled.
+    }
+  }
+
+  const handleMenu = async (item: MenuItem) => {
     if (item.content) {
       const [title, ...body] = item.content.split('\n\n')
       setModal({ title, body: body.join('\n\n') })
@@ -66,12 +119,24 @@ export default function ProfilePage() {
     }
 
     if (item.id === 'feedback') {
-      setFeedbackVisible(true)
+      try {
+        await requireLoggedIn('登录后才能提交用户反馈。')
+        await refreshProfile()
+        setFeedbackVisible(true)
+      } catch {
+        // User cancelled login.
+      }
       return
     }
 
     if (item.id === 'rate') {
-      setRatingVisible(true)
+      try {
+        await requireLoggedIn('登录后才能提交评分。')
+        await refreshProfile()
+        setRatingVisible(true)
+      } catch {
+        // User cancelled login.
+      }
     }
   }
 
@@ -87,8 +152,11 @@ export default function ProfilePage() {
       setFeedbackContent('')
       setFeedbackContact('')
       Taro.showToast({ title: '反馈已提交', icon: 'success' })
-    } catch {
-      Taro.showToast({ title: '提交失败，请稍后重试', icon: 'none' })
+    } catch (error) {
+      Taro.showToast({
+        title: error instanceof Error ? error.message.slice(0, 12) : '提交失败',
+        icon: 'none'
+      })
     }
   }
 
@@ -112,12 +180,38 @@ export default function ProfilePage() {
       </View>
 
       <View className='user-card'>
-        <View className='avatar-mark'>
-          <Text>我</Text>
+        {user?.avatar_url ? (
+          <Image className='avatar-image' src={user.avatar_url} mode='aspectFill' />
+        ) : (
+          <View className='avatar-mark'>
+            <Text>{isLoggedIn ? '我' : '登'}</Text>
+          </View>
+        )}
+        <View className='user-copy'>
+          <Text className='user-name'>{user?.nickname || (isLoggedIn ? '微信用户' : '未登录')}</Text>
+          <Text className='user-desc'>
+            {isLoggedIn ? `openid ${maskOpenid(loggedOpenid)}` : '登录后查看头像、昵称和使用次数'}
+          </Text>
         </View>
-        <View>
-          <Text className='user-name'>本地用户</Text>
-          <Text className='user-desc'>已使用本工具，数据仅存于本机</Text>
+        <Button className='login-action' hoverClass='login-action-hover' onClick={handleLogin}>
+          {isLoggedIn ? '刷新' : '微信登录'}
+        </Button>
+      </View>
+
+      <View className='usage-card'>
+        <View className='usage-item'>
+          <Text className='usage-number'>{quota ? quota.remaining : '-'}</Text>
+          <Text className='usage-label'>今日剩余</Text>
+        </View>
+        <View className='usage-divider' />
+        <View className='usage-item'>
+          <Text className='usage-number'>{quota ? quota.used : '-'}</Text>
+          <Text className='usage-label'>今日已用</Text>
+        </View>
+        <View className='usage-divider' />
+        <View className='usage-item'>
+          <Text className='usage-number'>{quota ? quota.total : '-'}</Text>
+          <Text className='usage-label'>总次数</Text>
         </View>
       </View>
 
@@ -147,7 +241,7 @@ export default function ProfilePage() {
         <Text>感谢您的评分，欢迎继续体验。</Text>
       </View>
 
-      <Text className='profile-footer'>© 2026 一键去水印，仅供学习研究</Text>
+      <Text className='profile-footer'>© 2026 图片去水印与 MD5 工具</Text>
 
       {modal ? (
         <View className='policy-mask' onClick={() => setModal(null)}>

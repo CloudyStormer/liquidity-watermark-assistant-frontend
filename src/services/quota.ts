@@ -7,7 +7,7 @@ export async function getDailyQuota() {
   return requestJson<DailyQuotaResponse>(`/users/${encodeURIComponent(openid)}/quota`)
 }
 
-export async function grantDailyQuota(extra = 3) {
+export async function grantDailyQuota(extra = 1) {
   const openid = await ensureLoggedIn()
   return requestJson<DailyQuotaResponse>(`/users/${encodeURIComponent(openid)}/quota/grant`, {
     method: 'POST',

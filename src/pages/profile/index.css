@@ -1,5 +1,5 @@
 .profile-header {
-  padding: 96rpx 32rpx 34rpx;
+  padding: calc(72rpx + env(safe-area-inset-top)) 32rpx 34rpx;
   color: #1a1a2e;
   font-size: 40rpx;
   line-height: 54rpx;
@@ -31,6 +31,20 @@
   flex-shrink: 0;
 }
 
+.avatar-image {
+  width: 112rpx;
+  height: 112rpx;
+  margin-right: 28rpx;
+  border-radius: 50%;
+  background: #ebf2ff;
+  flex-shrink: 0;
+}
+
+.user-copy {
+  flex: 1;
+  min-width: 0;
+}
+
 .user-name,
 .user-desc {
   display: block;
@@ -48,6 +62,63 @@
   color: #9ba3b8;
   font-size: 24rpx;
   line-height: 36rpx;
+}
+
+.login-action {
+  width: 132rpx;
+  height: 64rpx;
+  margin-left: 18rpx;
+  border-radius: 8rpx;
+  background: #3478f6;
+  color: #ffffff;
+  font-size: 24rpx;
+  line-height: 64rpx;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.login-action-hover {
+  opacity: 0.82;
+}
+
+.usage-card {
+  margin: 0 32rpx 32rpx;
+  padding: 28rpx 20rpx;
+  border-radius: 8rpx;
+  background: #ffffff;
+  box-shadow: 0 8rpx 28rpx rgba(52, 120, 246, 0.09);
+  display: flex;
+  align-items: center;
+}
+
+.usage-item {
+  flex: 1;
+  text-align: center;
+}
+
+.usage-number,
+.usage-label {
+  display: block;
+}
+
+.usage-number {
+  color: #3478f6;
+  font-size: 40rpx;
+  line-height: 52rpx;
+  font-weight: 900;
+}
+
+.usage-label {
+  margin-top: 8rpx;
+  color: #9ba3b8;
+  font-size: 22rpx;
+  line-height: 32rpx;
+}
+
+.usage-divider {
+  width: 1rpx;
+  height: 76rpx;
+  background: #e8ecf4;
 }
 
 .menu-card {

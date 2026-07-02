@@ -8,11 +8,12 @@ interface BottomNavProps {
 
 const navItems = [
   { key: 'home', label: '首页', icon: '✦', url: '/pages/index/index' },
-  { key: 'md5', label: 'MD5', icon: 'MD5', url: '/pages/md5/index' }
+  { key: 'md5', label: 'MD5', icon: 'MD5', url: '/pages/md5/index' },
+  { key: 'profile', label: '我的', icon: '我', url: '/pages/profile/index' }
 ] as const
 
 export default function BottomNav({ current }: BottomNavProps) {
-  const go = (url: string, key: 'home' | 'md5') => {
+  const go = (url: string, key: 'home' | 'md5' | 'profile') => {
     if (current === key) {
       return
     }

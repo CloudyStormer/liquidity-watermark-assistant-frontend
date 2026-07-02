@@ -33,6 +33,7 @@ interface DraftRect {
 
 const MODEL_OPTIONS = ['模型1(通用稳定) 快', '模型2(线条结构) 中', '模型3(精细修复) 慢']
 const BRUSH_SIZES = [12, 24, 38]
+const UNSUPPORTED_IMAGE_EXTENSIONS = ['.webp']
 
 function clamp(value: number) {
   return Math.max(0, Math.min(1, value))
@@ -87,6 +88,11 @@ function regionFromPoints(points: Point[], media: PickedMedia, brushSize: number
   )
 }
 
+function isUnsupportedImage(path: string) {
+  const normalized = path.toLowerCase().split('?')[0]
+  return UNSUPPORTED_IMAGE_EXTENSIONS.some((extension) => normalized.endsWith(extension))
+}
+
 export default function IndexPage() {
   const [usedToday, setUsedToday] = useState(0)
   const [totalQuota, setTotalQuota] = useState(FREE_QUOTA_PER_DAY)
@@ -117,7 +123,7 @@ export default function IndexPage() {
   }
 
   const loginAndRefreshQuota = async () => {
-    await requireLoggedIn()
+    await requireLoggedIn('登录后才能使用图片去水印，并同步今日免费次数。')
     return refreshQuota()
   }
 
@@ -156,12 +162,21 @@ export default function IndexPage() {
         return
       }
 
+      if (isUnsupportedImage(file.tempFilePath)) {
+        Taro.showToast({ title: '暂不支持 WebP 图片', icon: 'none' })
+        return
+      }
+
       const type = 'image'
       let width = Number(file.width) || undefined
       let height = Number(file.height) || undefined
 
       try {
         const imageInfo = await Taro.getImageInfo({ src: file.tempFilePath })
+        if (String(imageInfo.type || '').toLowerCase() === 'webp') {
+          Taro.showToast({ title: '暂不支持 WebP 图片', icon: 'none' })
+          return
+        }
         width = imageInfo.width
         height = imageInfo.height
       } catch {
@@ -184,7 +199,7 @@ export default function IndexPage() {
       setTimeout(syncPreviewBox, 180)
     } catch (error) {
       const message = error instanceof Error ? error.message : ''
-      if (!message.includes('cancel') && !message.includes('微信登录失败')) {
+      if (!message.includes('cancel') && !message.includes('登录')) {
         Taro.showToast({ title: '选择失败', icon: 'none' })
       }
     }
@@ -290,10 +305,15 @@ export default function IndexPage() {
       return
     }
 
-    const quota = await loginAndRefreshQuota()
-    const remaining = quota.remaining
-    if (remaining <= 0) {
-      setRewardVisible(true)
+    let remaining = 0
+    try {
+      const quota = await loginAndRefreshQuota()
+      remaining = quota.remaining
+      if (remaining <= 0) {
+        setRewardVisible(true)
+        return
+      }
+    } catch {
       return
     }
 
@@ -327,8 +347,7 @@ export default function IndexPage() {
         thumb: selectedFile.path,
         processedUrl: toApiUrl(finishedJob.result_url),
         processTime: formatDateTime(),
-        fileSize: formatFileSize(selectedFile.size),
-        resultMd5: finishedJob.result_md5 || undefined
+        fileSize: formatFileSize(selectedFile.size)
       })
       setProcessing(false)
       setProgress(0)
@@ -349,12 +368,12 @@ export default function IndexPage() {
 
   const handleWatchForQuota = () => {
     loginAndRefreshQuota()
-      .then(() => grantDailyQuota(FREE_QUOTA_PER_DAY))
+      .then(() => grantDailyQuota(1))
       .then((quota) => {
         setUsedToday(quota.used)
         setTotalQuota(quota.total)
         setRewardVisible(false)
-        Taro.showToast({ title: '已获得次数', icon: 'success' })
+        Taro.showToast({ title: '已获得 1 次机会', icon: 'success' })
       })
       .catch(() => {
         setRewardVisible(false)
@@ -589,11 +608,11 @@ export default function IndexPage() {
             <Text>＋</Text>
           </View>
           <Text className='upload-entry-title'>选择图片</Text>
-          <Text className='upload-entry-desc'>支持画笔涂抹、四边形框选，后端返回处理成品和 MD5</Text>
+          <Text className='upload-entry-desc'>支持画笔涂抹、四边形框选，后端返回处理成品</Text>
           <View className='format-list'>
             <Text>JPG</Text>
             <Text>PNG</Text>
-            <Text>WEBP</Text>
+            <Text>HEIC</Text>
           </View>
         </Button>
       </View>
@@ -607,7 +626,7 @@ export default function IndexPage() {
           {[
             '选择本地图片文件',
             '用画笔或框选标记水印区域',
-            '后端处理后返回成品和唯一 MD5'
+            '后端处理后返回去水印成品'
           ].map((text, index) => (
             <View className='step-row' key={text}>
               <Text className='step-number'>{index + 1}</Text>

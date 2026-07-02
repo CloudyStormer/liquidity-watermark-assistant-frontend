@@ -1,5 +1,5 @@
 .home-header {
-  padding: 96rpx 32rpx 28rpx;
+  padding: calc(72rpx + env(safe-area-inset-top)) 32rpx 28rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -218,7 +218,7 @@
 
 .editor-page {
   min-height: 100vh;
-  padding: 104rpx 30rpx 34rpx;
+  padding: calc(104rpx + env(safe-area-inset-top)) 30rpx 34rpx;
   background: #0b1e31;
   color: #ffffff;
   overflow-x: hidden;
@@ -230,8 +230,8 @@
   right: 0;
   top: 0;
   z-index: 20;
-  height: 104rpx;
-  padding: 22rpx 30rpx 0;
+  height: calc(104rpx + env(safe-area-inset-top));
+  padding: calc(22rpx + env(safe-area-inset-top)) 30rpx 0;
   display: flex;
   align-items: center;
   justify-content: space-between;

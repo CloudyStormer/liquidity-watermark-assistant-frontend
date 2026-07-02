@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import Taro from '@tarojs/taro'
-import { Button, Text, View } from '@tarojs/components'
+import { Button, Text, Video, View } from '@tarojs/components'
 import AdCard from '@/components/AdCard'
 import BottomNav from '@/components/BottomNav'
 import { requireLoggedIn } from '@/services/auth'
-import { downloadToTempFile, uploadMd5Variant } from '@/services/mediaJobs'
+import { downloadToTempFile, toApiUrl, uploadMd5Variant } from '@/services/mediaJobs'
 import type { Md5FileResponse, PickedMedia } from '@/types/media'
 import { formatFileSize, getFileName } from '@/utils/media'
 import './index.css'
@@ -14,6 +14,7 @@ export default function Md5Page() {
   const [computing, setComputing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [result, setResult] = useState<Md5FileResponse | null>(null)
+  const resultVideoUrl = result ? toApiUrl(result.result_url) : ''
 
   const chooseVideo = async () => {
     if (computing) {
@@ -21,7 +22,7 @@ export default function Md5Page() {
     }
 
     try {
-      await requireLoggedIn()
+      await requireLoggedIn('登录后才能上传视频并生成新的 MD5 文件。')
       const picked = await Taro.chooseMedia({
         count: 1,
         mediaType: ['video'],
@@ -45,7 +46,7 @@ export default function Md5Page() {
       await startMd5(nextFile)
     } catch (error) {
       const message = error instanceof Error ? error.message : ''
-      if (!message.includes('cancel') && !message.includes('微信登录失败')) {
+      if (!message.includes('cancel') && !message.includes('登录')) {
         Taro.showToast({ title: '选择失败', icon: 'none' })
       }
     }
@@ -83,13 +84,14 @@ export default function Md5Page() {
     }
 
     try {
+      await requireLoggedIn('登录后才能下载保存生成的新视频。')
       const tempPath = await downloadToTempFile(result.result_url)
       await Taro.saveVideoToPhotosAlbum({ filePath: tempPath })
       Taro.showToast({ title: '已保存', icon: 'success' })
-    } catch {
+    } catch (error) {
       Taro.showModal({
         title: '保存失败',
-        content: '请确认相册权限已开启，或稍后重试。',
+        content: error instanceof Error ? error.message : '请确认相册权限已开启，或稍后重试。',
         showCancel: false
       })
     }
@@ -162,6 +164,16 @@ export default function Md5Page() {
       {result ? (
         <View className='md5-result-card'>
           <Text className='md5-result-title'>修改完成</Text>
+          <View className='md5-video-preview'>
+            <Video
+              className='md5-video'
+              src={resultVideoUrl}
+              controls
+              objectFit='contain'
+              showCenterPlayBtn
+            />
+          </View>
+          <Text className='md5-video-hint'>新视频可在线播放，确认无误后可保存到相册。</Text>
           <View className='hash-row'>
             <Text className='hash-label'>原 MD5</Text>
             <Text className='hash-value'>{result.original_md5}</Text>

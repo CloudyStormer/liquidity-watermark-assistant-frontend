@@ -10,7 +10,7 @@ export const DISCLAIMER_TEXT =
   '本工具仅供个人学习与研究使用。仅可处理自有版权素材，侵权责任由使用者自行承担。严禁用于任何侵犯他人版权、肖像权或隐私权的行为。'
 
 export const SUPPORT_FORMATS = {
-  image: ['JPG', 'PNG', 'WEBP', 'HEIC'],
+  image: ['JPG', 'PNG', 'HEIC'],
   video: ['MP4', 'MOV', 'AVI', 'MKV']
 }
 

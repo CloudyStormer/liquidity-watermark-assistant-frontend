@@ -63,7 +63,8 @@ export function toApiUrl(path: string) {
     return path
   }
 
-  return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
+  const normalizedPath = path.startsWith('/api/') ? path.slice(4) : path
+  return `${API_BASE_URL}${normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`}`
 }
 
 export async function uploadCleanupJob(options: UploadCleanupOptions) {
