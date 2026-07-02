@@ -1,14 +1,29 @@
 .md5-page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: #ffffff;
 }
 
 .md5-header {
+  flex-shrink: 0;
   padding: calc(78rpx + env(safe-area-inset-top)) 32rpx 34rpx;
   color: #111111;
   font-size: 36rpx;
   line-height: 48rpx;
   font-weight: 900;
   text-align: center;
+}
+
+.md5-scroll {
+  flex: 1;
+  height: 0;
+  overflow: hidden;
+}
+
+.md5-scroll-inner {
+  padding-bottom: calc(148rpx + env(safe-area-inset-bottom));
 }
 
 .md5-ad-row {
@@ -213,7 +228,7 @@
 
 .md5-note {
   display: block;
-  margin: 20rpx 32rpx calc(126rpx + env(safe-area-inset-bottom));
+  margin: 20rpx 32rpx 0;
   color: #98a2b3;
   font-size: 24rpx;
   line-height: 34rpx;

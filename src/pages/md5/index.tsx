@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import Taro from '@tarojs/taro'
-import { Button, Text, Video, View } from '@tarojs/components'
+import { Button, ScrollView, Text, Video, View } from '@tarojs/components'
 import AdCard from '@/components/AdCard'
 import BottomNav from '@/components/BottomNav'
 import RewardedAdDialog from '@/components/RewardedAdDialog'
@@ -208,14 +208,16 @@ export default function Md5Page() {
   }
 
   return (
-    <View className='page-shell fade-in md5-page'>
+    <View className='fade-in md5-page'>
       <View className='md5-header'>
         <Text>MD5 修改</Text>
       </View>
 
-      <View className='md5-ad-row'>
-        <AdCard />
-      </View>
+      <ScrollView className='md5-scroll' scrollY enhanced showScrollbar={false}>
+        <View className='md5-scroll-inner'>
+          <View className='md5-ad-row'>
+            <AdCard />
+          </View>
 
       <View className='md5-info-card'>
         <Text className='md5-info-title'>MD5 作用说明</Text>
@@ -292,6 +294,8 @@ export default function Md5Page() {
       ) : null}
 
       <Text className='md5-note'>文件上传后由后端生成新副本，处理完成即可在线播放和下载保存。</Text>
+        </View>
+      </ScrollView>
       <BottomNav current='md5' />
       <RewardedAdDialog
         visible={rewardVisible}
