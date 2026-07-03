@@ -52,7 +52,7 @@ function getTaroErrorMessage(error: unknown) {
 function parseUploadResponse<T>(response: Taro.uploadFile.SuccessCallbackResult): T {
   if (response.statusCode < 200 || response.statusCode >= 300) {
     const message = parseErrorPayload(response.data)
-    throw new Error(message ? `${response.statusCode}: ${message}` : `Upload failed: ${response.statusCode}`)
+    throw new Error(message || `Upload failed: ${response.statusCode}`)
   }
 
   return JSON.parse(response.data || '{}') as T

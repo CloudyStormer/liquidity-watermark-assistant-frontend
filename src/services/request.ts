@@ -32,7 +32,7 @@ function getResponseErrorMessage(statusCode: number, data: unknown) {
     stringifyDetail(payload?.message) ||
     stringifyDetail(payload?.errMsg)
 
-  return message ? `${statusCode}: ${message}` : `Request failed: ${statusCode}`
+  return message || `Request failed: ${statusCode}`
 }
 
 function getRequestErrorMessage(error: unknown) {

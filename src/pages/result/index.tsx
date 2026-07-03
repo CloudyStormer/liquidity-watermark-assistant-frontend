@@ -142,6 +142,10 @@ export default function ResultPage() {
         </Button>
       </View>
 
+      <View className='security-note'>
+        <Text>内容安全说明：上传素材会进行安全检测，如检测到违规内容，系统将提示用户所发布内容含违规信息并终止处理。</Text>
+      </View>
+
       <AdCard variant='interstitial' />
       <BottomNav current='result' />
       <WeChatLoginDialog />

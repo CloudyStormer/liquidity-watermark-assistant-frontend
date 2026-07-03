@@ -117,3 +117,17 @@
 .download-button-hover {
   opacity: 0.82;
 }
+
+.security-note {
+  margin: 0 32rpx 28rpx;
+  padding: 22rpx 26rpx;
+  border-radius: 8rpx;
+  background: #fff7ed;
+  border: 1rpx solid #fed7aa;
+}
+
+.security-note text {
+  color: #9a3412;
+  font-size: 22rpx;
+  line-height: 34rpx;
+}
