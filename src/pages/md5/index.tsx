@@ -97,6 +97,7 @@ export default function Md5Page() {
   const [computing, setComputing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [statusLabel, setStatusLabel] = useState('')
   const [result, setResult] = useState<Md5FileResponse | null>(null)
   const [rewardVisible, setRewardVisible] = useState(false)
   const resultVideoUrl = result ? toApiUrl(result.result_url) : ''
@@ -130,6 +131,7 @@ export default function Md5Page() {
   const startMd5 = async (file: PickedMedia) => {
     setComputing(true)
     setProgress(18)
+    setStatusLabel('安全合规检测中...')
     setResult(null)
     let timer: ReturnType<typeof setInterval> | null = null
 
@@ -137,8 +139,10 @@ export default function Md5Page() {
       timer = setInterval(() => {
         setProgress((current) => Math.min(92, current + 11))
       }, 650)
+      setStatusLabel('检测通过，正在生成唯一副本...')
       const response = await uploadMd5Variant(file.path)
       setProgress(100)
+      setStatusLabel('处理完成')
       setResult(response)
       Taro.showToast({ title: 'MD5 已修改', icon: 'success' })
     } catch (error) {
@@ -157,7 +161,10 @@ export default function Md5Page() {
         clearInterval(timer)
       }
       setComputing(false)
-      setTimeout(() => setProgress(0), 800)
+      setTimeout(() => {
+        setProgress(0)
+        setStatusLabel('')
+      }, 800)
     }
   }
 
@@ -246,7 +253,7 @@ export default function Md5Page() {
 
       {computing || progress > 0 ? (
         <View className='md5-progress-card'>
-          <Text className='md5-progress-title'>正在生成唯一副本</Text>
+          <Text className='md5-progress-title'>{statusLabel || '正在生成唯一副本'}</Text>
           <View className='md5-progress-track'>
             <View className='md5-progress-fill' style={{ width: `${progress}%` }} />
           </View>

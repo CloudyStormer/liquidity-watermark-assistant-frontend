@@ -421,7 +421,7 @@ export default function IndexPage() {
     setProcessing(true)
     setStep('processing')
     setProgress(12)
-    setStatusLabel('上传素材中...')
+    setStatusLabel('安全合规检测中...')
 
     try {
       const job = await uploadCleanupJob({
@@ -430,7 +430,7 @@ export default function IndexPage() {
         regions
       })
       setProgress(28)
-      setStatusLabel('任务已提交...')
+      setStatusLabel('检测通过，正在处理...')
       const finishedJob = await waitForMediaJob(job.id, (nextProgress, label) => {
         setProgress(nextProgress)
         setStatusLabel(label)
