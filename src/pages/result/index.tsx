@@ -9,6 +9,7 @@ import { requireLoggedIn } from '@/services/auth'
 import { downloadToTempFile } from '@/services/mediaJobs'
 import type { ProcessedFile } from '@/types/media'
 import { getLatestResult } from '@/utils/storage'
+import { usePageShare } from '@/utils/share'
 import './index.css'
 
 function getErrorMessage(error: unknown) {
@@ -21,6 +22,12 @@ function getErrorMessage(error: unknown) {
 }
 
 export default function ResultPage() {
+  usePageShare({
+    title: '花果山去水印小栈 - 图片去水印与视频 MD5 工具',
+    path: '/pages/index/index',
+    query: 'from=share&page=result'
+  })
+
   const [fileData, setFileData] = useState<ProcessedFile>(MOCK_RESULT)
   const [downloaded, setDownloaded] = useState(false)
   const [saving, setSaving] = useState(false)

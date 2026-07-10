@@ -10,6 +10,7 @@ import { downloadToTempFile, toApiUrl, uploadMd5Variant } from '@/services/media
 import { grantDailyQuota } from '@/services/quota'
 import type { Md5FileResponse, PickedMedia } from '@/types/media'
 import { formatFileSize, getFileName } from '@/utils/media'
+import { usePageShare } from '@/utils/share'
 import './index.css'
 
 function getErrorMessage(error: unknown) {
@@ -93,6 +94,12 @@ async function pickVideoFile() {
 }
 
 export default function Md5Page() {
+  usePageShare({
+    title: '视频 MD5 修改工具 - 花果山去水印小栈',
+    path: '/pages/md5/index',
+    query: 'from=share&page=md5'
+  })
+
   const [selectedFile, setSelectedFile] = useState<PickedMedia | null>(null)
   const [computing, setComputing] = useState(false)
   const [saving, setSaving] = useState(false)

@@ -1,4 +1,6 @@
 export default definePageConfig({
   navigationBarTitleText: '图片去水印',
-  navigationStyle: 'custom'
+  navigationStyle: 'custom',
+  enableShareAppMessage: true,
+  enableShareTimeline: true
 })

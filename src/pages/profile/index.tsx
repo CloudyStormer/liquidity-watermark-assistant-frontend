@@ -14,6 +14,7 @@ import { toApiUrl } from '@/services/mediaJobs'
 import { getDailyQuota } from '@/services/quota'
 import { submitFeedback, submitRating } from '@/services/userActions'
 import type { DailyQuotaResponse, UserProfileResponse } from '@/types/media'
+import { usePageShare } from '@/utils/share'
 import './index.css'
 
 interface MenuItem {
@@ -37,6 +38,12 @@ function getAvatarUrl(user?: LoginResponse | null) {
 }
 
 export default function ProfilePage() {
+  usePageShare({
+    title: '花果山去水印小栈 - 图片去水印与视频 MD5 工具',
+    path: '/pages/index/index',
+    query: 'from=share&page=profile'
+  })
+
   const [user, setUser] = useState<LoginResponse | null>(() => getStoredUser())
   const [profile, setProfile] = useState<UserProfileResponse | null>(null)
   const [quota, setQuota] = useState<DailyQuotaResponse | null>(null)

@@ -13,6 +13,7 @@ import { toApiUrl, uploadCleanupJob, waitForMediaJob } from '@/services/mediaJob
 import { getDailyQuota, grantDailyQuota } from '@/services/quota'
 import type { CleanupMethod, EditorMode, PickedMedia, WatermarkRegion } from '@/types/media'
 import { formatDateTime, formatFileSize, getFileName } from '@/utils/media'
+import { usePageShare } from '@/utils/share'
 import {
   agreeDisclaimer,
   hasAgreedDisclaimer,
@@ -171,6 +172,12 @@ function buildBrushRegions(
 }
 
 export default function IndexPage() {
+  usePageShare({
+    title: '花果山去水印小栈 - 图片去水印与视频 MD5 工具',
+    path: '/pages/index/index',
+    query: 'from=share&page=index'
+  })
+
   const [usedToday, setUsedToday] = useState(0)
   const [totalQuota, setTotalQuota] = useState(FREE_QUOTA_PER_DAY)
   const [rewardVisible, setRewardVisible] = useState(false)
